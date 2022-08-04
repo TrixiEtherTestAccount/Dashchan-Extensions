@@ -1005,7 +1005,7 @@ public class DvachChanPerformer extends ChanPerformer {
 		}
 		if (data.attachments != null) {
 			for (int i = 0; i < data.attachments.length; i++) {
-				data.attachments[i].addToEntity(entity, "image" + (i + 1));
+				data.attachments[i].addToEntity(entity, "file[]");
 			}
 		}
 		entity.add("icon", data.userIcon);
@@ -1037,7 +1037,7 @@ public class DvachChanPerformer extends ChanPerformer {
 			originalPosterCookie = configuration.getCookie(originalPosterCookieName);
 		}
 
-		Uri uri = locator.createFcgiUri(DvachChanLocator.Fcgi.POSTING, "json", "1");
+		Uri uri = locator.buildPath("user/posting");
 		HttpResponse response = new HttpRequest(uri, data).setPostMethod(entity)
 				.addCookie(buildCookies(captchaPassCookie)).addCookie(originalPosterCookieName, originalPosterCookie)
 				.setRedirectHandler(HttpRequest.RedirectHandler.STRICT).perform();
