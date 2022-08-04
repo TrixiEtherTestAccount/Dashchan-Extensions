@@ -3,6 +3,8 @@ package com.mishiranu.dashchan.chan.dvach;
 import android.annotation.SuppressLint;
 import android.graphics.Bitmap;
 import android.net.Uri;
+import android.util.Log;
+
 import chan.content.ApiException;
 import chan.content.ChanPerformer;
 import chan.content.InvalidResponseException;
@@ -1056,7 +1058,7 @@ public class DvachChanPerformer extends ChanPerformer {
 		if (!StringUtils.isEmpty(postNumber)) {
 			return new SendPostResult(data.threadNumber, postNumber);
 		}
-		String threadNumber = CommonUtils.optJsonString(jsonObject, "Target");
+		String threadNumber = CommonUtils.optJsonString(jsonObject, "thread");
 		if (!StringUtils.isEmpty(threadNumber)) {
 			originalPosterCookieName = "op_" + data.boardName + "_" + threadNumber;
 			originalPosterCookie = response.getCookieValue(originalPosterCookieName);
