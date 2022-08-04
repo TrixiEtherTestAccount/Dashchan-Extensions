@@ -1187,35 +1187,47 @@ public class DvachChanPerformer extends ChanPerformer {
 	public SendReportPostsResult onSendReportPosts(SendReportPostsData data) throws HttpException, ApiException,
 			InvalidResponseException {
 		DvachChanLocator locator = DvachChanLocator.get(this);
-		Uri uri = locator.createFcgiUri(DvachChanLocator.Fcgi.MAKABA);
+		Uri uri = locator.buildPath("user/report");
 		StringBuilder postsBuilder = new StringBuilder();
 		for (String postNumber : data.postNumbers) {
 			postsBuilder.append(postNumber).append(", ");
 		}
-		MultipartEntity entity = new MultipartEntity("task", "report", "board", data.boardName,
-				"thread", data.threadNumber, "posts", postsBuilder.toString(), "comment", data.comment, "json", "1");
+
+		MultipartEntity entity = new MultipartEntity();
+		entity.add("board", data.boardName);
+		entity.add("thread", data.threadNumber);
+		if (!data.postNumbers.isEmpty()) {
+			entity.add("post", data.postNumbers.get(0));
+		}
+		entity.add("comment", data.comment);
+
 		String referer = locator.createThreadUri(data.boardName, data.threadNumber).toString();
 		JSONObject jsonObject;
 		try {
 			jsonObject = new JSONObject(new HttpRequest(uri, data).addCookie(buildCookiesWithCaptchaPass())
-					.addHeader("Referer", referer).setPostMethod(entity)
-					.setRedirectHandler(HttpRequest.RedirectHandler.STRICT).perform().readString());
+					.setPostMethod(entity).setRedirectHandler(HttpRequest.RedirectHandler.STRICT).perform().readString());
 		} catch (JSONException e) {
 			throw new InvalidResponseException(e);
 		}
 		try {
-			String message = CommonUtils.getJsonString(jsonObject, "message");
-			if (StringUtils.isEmpty(message)) {
+			String result = CommonUtils.getJsonString(jsonObject, "result");
+			String message = "";
+			if (!result.equals("1")) {
+				message = CommonUtils.getJsonString(jsonObject, "message");
+				if (StringUtils.isEmpty(message)) {
+					return null;
+				}
+				int errorType = 0;
+				if (message.contains("Вы уже отправляли жалобу")) {
+					errorType = ApiException.REPORT_ERROR_TOO_OFTEN;
+				} else if (message.contains("Вы ничего не написали в жалобе")) {
+					errorType = ApiException.REPORT_ERROR_EMPTY_COMMENT;
+				}
+				if (errorType != 0) {
+					throw new ApiException(errorType);
+				}
+			} else {
 				return null;
-			}
-			int errorType = 0;
-			if (message.contains("Вы уже отправляли жалобу")) {
-				errorType = ApiException.REPORT_ERROR_TOO_OFTEN;
-			} else if (message.contains("Вы ничего не написали в жалобе")) {
-				errorType = ApiException.REPORT_ERROR_EMPTY_COMMENT;
-			}
-			if (errorType != 0) {
-				throw new ApiException(errorType);
 			}
 			throw new ApiException(message);
 		} catch (JSONException e) {
