@@ -1052,7 +1052,7 @@ public class DvachChanPerformer extends ChanPerformer {
 			DvachChanConfiguration configuration = DvachChanConfiguration.get(this);
 			configuration.storeCookie(COOKIE_USERCODE_AUTH, auth, "Usercode Auth");
 		}
-		String postNumber = CommonUtils.optJsonString(jsonObject, "Num");
+		String postNumber = CommonUtils.optJsonString(jsonObject, "num");
 		if (!StringUtils.isEmpty(postNumber)) {
 			return new SendPostResult(data.threadNumber, postNumber);
 		}
