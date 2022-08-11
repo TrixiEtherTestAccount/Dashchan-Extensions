@@ -1,6 +1,12 @@
 package com.mishiranu.dashchan.chan.dvach;
 
 import android.net.Uri;
+
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
+
 import chan.content.model.Attachment;
 import chan.content.model.EmbeddedAttachment;
 import chan.content.model.FileAttachment;
@@ -510,6 +516,33 @@ public class DvachModelMapper {
 		if (archiveDate != null && !posts.isEmpty()) {
 			posts.get(0).setArchived(true);
 		}
+		return posts;
+	}
+
+	public static ArrayList<Post> createPostsFromHtml(String html) {
+		ArrayList<Post> posts = new ArrayList<>();
+
+		Document doc = Jsoup.parse(html);
+		Elements elements = doc.select("div.box");
+
+		for (Element el : elements) {
+
+			Post post = new Post();
+			post.setPostNumber(el.id().split("post-")[1]);
+
+			String parentLink = el.select("span.reflink > a").attr("href");
+			String p = "\\/res\\/([\\d]+)\\.html";
+			Pattern r = Pattern.compile(p);
+			Matcher m = r.matcher(parentLink);
+			if (m.find())
+				post.setParentPostNumber(m.group(1));
+
+			post.setName(el.select("span.ananimas").text());
+			post.setComment(el.select("blockquote").text());
+
+			posts.add(post);
+		}
+
 		return posts;
 	}
 

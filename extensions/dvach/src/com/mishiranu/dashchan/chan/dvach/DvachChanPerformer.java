@@ -39,6 +39,10 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
 
 public class DvachChanPerformer extends ChanPerformer {
 	private static final String COOKIE_USERCODE_AUTH = "usercode_auth";
@@ -462,41 +466,13 @@ public class DvachChanPerformer extends ChanPerformer {
 				throw response.fail(e);
 			}
 		} else {
-			Uri uri = locator.createFcgiUri(DvachChanLocator.Fcgi.MAKABA);
-			MultipartEntity entity = new MultipartEntity("task", "search", "board", data.boardName,
-					"find", data.searchQuery, "json", "1");
+			Uri uri = locator.buildPath("user/search");
+			MultipartEntity entity = new MultipartEntity("board", data.boardName,
+					"text", data.searchQuery);
 			HttpResponse response = new HttpRequest(uri, data).addCookie(buildCookiesWithCaptchaPass())
 					.setPostMethod(entity).setRedirectHandler(HttpRequest.RedirectHandler.STRICT).perform();
-			try (InputStream input = response.open();
-					JsonSerial.Reader reader = JsonSerial.reader(input)) {
-				List<Post> posts = Collections.emptyList();
-				reader.startObject();
-				while (!reader.endStruct()) {
-					switch (reader.nextName()) {
-						case "message": {
-							String errorMessage = reader.nextString();
-							if (!StringUtils.isEmpty(errorMessage)) {
-								throw new HttpException(0, errorMessage);
-							}
-							break;
-						}
-						case "posts": {
-							posts = DvachModelMapper.createPosts(reader, this, data.boardName, null,
-									configuration.isSageEnabled(data.boardName), null);
-							break;
-						}
-						default: {
-							reader.skip();
-							break;
-						}
-					}
-				}
-				return new ReadSearchPostsResult(posts);
-			} catch (ParseException e) {
-				throw new InvalidResponseException(e);
-			} catch (IOException e) {
-				throw response.fail(e);
-			}
+			List<Post> posts = DvachModelMapper.createPostsFromHtml(response.readString());
+			return new ReadSearchPostsResult(posts);
 		}
 	}
 
