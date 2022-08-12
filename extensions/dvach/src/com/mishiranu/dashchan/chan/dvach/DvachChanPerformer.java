@@ -1046,8 +1046,16 @@ public class DvachChanPerformer extends ChanPerformer {
 			return new SendPostResult(threadNumber, null);
 		}
 
-		int error = Math.abs(jsonObject.optInt("Error", Integer.MAX_VALUE));
-		String reason = CommonUtils.optJsonString(jsonObject, "Reason");
+		int error;
+		String reason;
+		try {
+			JSONObject jsonError = new JSONObject(CommonUtils.getJsonString(jsonObject, "error"));
+			error = Math.abs(jsonError.optInt("code", Integer.MAX_VALUE));
+			reason = CommonUtils.optJsonString(jsonError, "message");
+		} catch (JSONException e) {
+			throw new InvalidResponseException();
+		}
+
 		int errorType = 0;
 		Object extra = null;
 		switch (error) {
