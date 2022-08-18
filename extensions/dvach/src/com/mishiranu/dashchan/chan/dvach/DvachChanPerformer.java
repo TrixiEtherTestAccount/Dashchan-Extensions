@@ -3,6 +3,8 @@ package com.mishiranu.dashchan.chan.dvach;
 import android.annotation.SuppressLint;
 import android.graphics.Bitmap;
 import android.net.Uri;
+import android.util.Log;
+
 import chan.content.ApiException;
 import chan.content.ChanPerformer;
 import chan.content.InvalidResponseException;
@@ -37,6 +39,10 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
 
 public class DvachChanPerformer extends ChanPerformer {
 	private static final String COOKIE_USERCODE_AUTH = "usercode_auth";
@@ -460,41 +466,13 @@ public class DvachChanPerformer extends ChanPerformer {
 				throw response.fail(e);
 			}
 		} else {
-			Uri uri = locator.createFcgiUri(DvachChanLocator.Fcgi.MAKABA);
-			MultipartEntity entity = new MultipartEntity("task", "search", "board", data.boardName,
-					"find", data.searchQuery, "json", "1");
+			Uri uri = locator.buildPath("user/search");
+			MultipartEntity entity = new MultipartEntity("board", data.boardName,
+					"text", data.searchQuery);
 			HttpResponse response = new HttpRequest(uri, data).addCookie(buildCookiesWithCaptchaPass())
 					.setPostMethod(entity).setRedirectHandler(HttpRequest.RedirectHandler.STRICT).perform();
-			try (InputStream input = response.open();
-					JsonSerial.Reader reader = JsonSerial.reader(input)) {
-				List<Post> posts = Collections.emptyList();
-				reader.startObject();
-				while (!reader.endStruct()) {
-					switch (reader.nextName()) {
-						case "message": {
-							String errorMessage = reader.nextString();
-							if (!StringUtils.isEmpty(errorMessage)) {
-								throw new HttpException(0, errorMessage);
-							}
-							break;
-						}
-						case "posts": {
-							posts = DvachModelMapper.createPosts(reader, this, data.boardName, null,
-									configuration.isSageEnabled(data.boardName), null);
-							break;
-						}
-						default: {
-							reader.skip();
-							break;
-						}
-					}
-				}
-				return new ReadSearchPostsResult(posts);
-			} catch (ParseException e) {
-				throw new InvalidResponseException(e);
-			} catch (IOException e) {
-				throw response.fail(e);
-			}
+			List<Post> posts = DvachModelMapper.createPostsFromHtml(response.readString());
+			return new ReadSearchPostsResult(posts);
 		}
 	}
 
@@ -1005,7 +983,7 @@ public class DvachChanPerformer extends ChanPerformer {
 		}
 		if (data.attachments != null) {
 			for (int i = 0; i < data.attachments.length; i++) {
-				data.attachments[i].addToEntity(entity, "image" + (i + 1));
+				data.attachments[i].addToEntity(entity, "file[]");
 			}
 		}
 		entity.add("icon", data.userIcon);
@@ -1037,7 +1015,7 @@ public class DvachChanPerformer extends ChanPerformer {
 			originalPosterCookie = configuration.getCookie(originalPosterCookieName);
 		}
 
-		Uri uri = locator.createFcgiUri(DvachChanLocator.Fcgi.POSTING, "json", "1");
+		Uri uri = locator.buildPath("user/posting");
 		HttpResponse response = new HttpRequest(uri, data).setPostMethod(entity)
 				.addCookie(buildCookies(captchaPassCookie)).addCookie(originalPosterCookieName, originalPosterCookie)
 				.setRedirectHandler(HttpRequest.RedirectHandler.STRICT).perform();
@@ -1052,11 +1030,11 @@ public class DvachChanPerformer extends ChanPerformer {
 			DvachChanConfiguration configuration = DvachChanConfiguration.get(this);
 			configuration.storeCookie(COOKIE_USERCODE_AUTH, auth, "Usercode Auth");
 		}
-		String postNumber = CommonUtils.optJsonString(jsonObject, "Num");
+		String postNumber = CommonUtils.optJsonString(jsonObject, "num");
 		if (!StringUtils.isEmpty(postNumber)) {
 			return new SendPostResult(data.threadNumber, postNumber);
 		}
-		String threadNumber = CommonUtils.optJsonString(jsonObject, "Target");
+		String threadNumber = CommonUtils.optJsonString(jsonObject, "thread");
 		if (!StringUtils.isEmpty(threadNumber)) {
 			originalPosterCookieName = "op_" + data.boardName + "_" + threadNumber;
 			originalPosterCookie = response.getCookieValue(originalPosterCookieName);
@@ -1068,8 +1046,16 @@ public class DvachChanPerformer extends ChanPerformer {
 			return new SendPostResult(threadNumber, null);
 		}
 
-		int error = Math.abs(jsonObject.optInt("Error", Integer.MAX_VALUE));
-		String reason = CommonUtils.optJsonString(jsonObject, "Reason");
+		int error;
+		String reason;
+		try {
+			JSONObject jsonError = new JSONObject(CommonUtils.getJsonString(jsonObject, "error"));
+			error = Math.abs(jsonError.optInt("code", Integer.MAX_VALUE));
+			reason = CommonUtils.optJsonString(jsonError, "message");
+		} catch (JSONException e) {
+			throw new InvalidResponseException();
+		}
+
 		int errorType = 0;
 		Object extra = null;
 		switch (error) {
@@ -1185,35 +1171,47 @@ public class DvachChanPerformer extends ChanPerformer {
 	public SendReportPostsResult onSendReportPosts(SendReportPostsData data) throws HttpException, ApiException,
 			InvalidResponseException {
 		DvachChanLocator locator = DvachChanLocator.get(this);
-		Uri uri = locator.createFcgiUri(DvachChanLocator.Fcgi.MAKABA);
+		Uri uri = locator.buildPath("user/report");
 		StringBuilder postsBuilder = new StringBuilder();
 		for (String postNumber : data.postNumbers) {
 			postsBuilder.append(postNumber).append(", ");
 		}
-		MultipartEntity entity = new MultipartEntity("task", "report", "board", data.boardName,
-				"thread", data.threadNumber, "posts", postsBuilder.toString(), "comment", data.comment, "json", "1");
+
+		MultipartEntity entity = new MultipartEntity();
+		entity.add("board", data.boardName);
+		entity.add("thread", data.threadNumber);
+		if (!data.postNumbers.isEmpty()) {
+			entity.add("post", data.postNumbers.get(0));
+		}
+		entity.add("comment", data.comment);
+
 		String referer = locator.createThreadUri(data.boardName, data.threadNumber).toString();
 		JSONObject jsonObject;
 		try {
 			jsonObject = new JSONObject(new HttpRequest(uri, data).addCookie(buildCookiesWithCaptchaPass())
-					.addHeader("Referer", referer).setPostMethod(entity)
-					.setRedirectHandler(HttpRequest.RedirectHandler.STRICT).perform().readString());
+					.setPostMethod(entity).setRedirectHandler(HttpRequest.RedirectHandler.STRICT).perform().readString());
 		} catch (JSONException e) {
 			throw new InvalidResponseException(e);
 		}
 		try {
-			String message = CommonUtils.getJsonString(jsonObject, "message");
-			if (StringUtils.isEmpty(message)) {
+			String result = CommonUtils.getJsonString(jsonObject, "result");
+			String message = "";
+			if (!result.equals("1")) {
+				message = CommonUtils.getJsonString(jsonObject, "message");
+				if (StringUtils.isEmpty(message)) {
+					return null;
+				}
+				int errorType = 0;
+				if (message.contains("Вы уже отправляли жалобу")) {
+					errorType = ApiException.REPORT_ERROR_TOO_OFTEN;
+				} else if (message.contains("Вы ничего не написали в жалобе")) {
+					errorType = ApiException.REPORT_ERROR_EMPTY_COMMENT;
+				}
+				if (errorType != 0) {
+					throw new ApiException(errorType);
+				}
+			} else {
 				return null;
-			}
-			int errorType = 0;
-			if (message.contains("Вы уже отправляли жалобу")) {
-				errorType = ApiException.REPORT_ERROR_TOO_OFTEN;
-			} else if (message.contains("Вы ничего не написали в жалобе")) {
-				errorType = ApiException.REPORT_ERROR_EMPTY_COMMENT;
-			}
-			if (errorType != 0) {
-				throw new ApiException(errorType);
 			}
 			throw new ApiException(message);
 		} catch (JSONException e) {
