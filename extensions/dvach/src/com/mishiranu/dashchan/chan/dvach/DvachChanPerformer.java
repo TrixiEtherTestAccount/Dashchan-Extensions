@@ -46,6 +46,7 @@ import org.jsoup.select.Elements;
 public class DvachChanPerformer extends ChanPerformer {
 	private static final String COOKIE_USERCODE_AUTH = "usercode_auth";
 	private static final String COOKIE_PASSCODE_AUTH = "passcode_auth";
+	private static final int PASSCODUBOYAR_MAX_FILES = 8;
 
 	private static final String[] PREFERRED_BOARDS_ORDER = {"Разное", "Тематика", "Творчество", "Политика",
 			"Техника и софт", "Игры", "Японская культура", "Взрослым", "Пробное"};
@@ -805,7 +806,7 @@ public class DvachChanPerformer extends ChanPerformer {
 		lastCaptchaPassData = captchaPassData;
 		lastCaptchaPassCookie = captchaPassCookie;
 		if (captchaPassCookie != null) {
-			configuration.setMaxFilesCount(8);
+			configuration.setMaxFilesCount(PASSCODUBOYAR_MAX_FILES);
 			configuration.storeCookie(COOKIE_PASSCODE_AUTH, captchaPassCookie, "Passcode Auth");
 		}
 		return captchaPassCookie;
