@@ -3,7 +3,6 @@ package com.mishiranu.dashchan.chan.dvach;
 import android.annotation.SuppressLint;
 import android.graphics.Bitmap;
 import android.net.Uri;
-import android.util.Log;
 
 import chan.content.ApiException;
 import chan.content.ChanPerformer;
@@ -47,6 +46,7 @@ import org.jsoup.select.Elements;
 public class DvachChanPerformer extends ChanPerformer {
 	private static final String COOKIE_USERCODE_AUTH = "usercode_auth";
 	private static final String COOKIE_PASSCODE_AUTH = "passcode_auth";
+	private static final int PASSCODUBOYAR_MAX_FILES = 8;
 
 	private static final String[] PREFERRED_BOARDS_ORDER = {"Разное", "Тематика", "Творчество", "Политика",
 			"Техника и софт", "Игры", "Японская культура", "Взрослым", "Пробное"};
@@ -785,29 +785,28 @@ public class DvachChanPerformer extends ChanPerformer {
 		configuration.revokeMaxFilesCount();
 		configuration.storeCookie(COOKIE_PASSCODE_AUTH, null, null);
 		DvachChanLocator locator = DvachChanLocator.get(this);
-		Uri uri = locator.createFcgiUri(DvachChanLocator.Fcgi.MAKABA);
-		UrlEncodedEntity entity = new UrlEncodedEntity("task", "auth", "usercode", captchaPassData, "json", "1");
-		JSONObject jsonObject;
+		Uri uri = locator.buildPath("/user/passlogin");
+		UrlEncodedEntity entity = new UrlEncodedEntity("passcode", captchaPassData);
+		
+		HttpResponse response = null;
 		try {
-			jsonObject = new JSONObject(readMobileApi(new HttpRequest(uri, preset).addCookie(buildCookies(null))
-					.setPostMethod(entity).setRedirectHandler(HttpRequest.RedirectHandler.STRICT)).readString());
-		} catch (JSONException e) {
-			throw new InvalidResponseException(e);
+			response = new HttpRequest(uri, preset).addCookie(buildCookies(null))
+					.setPostMethod(entity).setRedirectHandler(HttpRequest.RedirectHandler.NONE).perform();
+		} catch (HttpException e) {
+			throw new InvalidResponseException();
 		}
-		if (jsonObject.optInt("result") != 1) {
-			return null;
+		
+		String captchaPassCookie = "";
+		if (response != null) {
+			captchaPassCookie = response.getCookieValue("passcode_auth");
 		}
-		String captchaPassCookie = CommonUtils.optJsonString(jsonObject, "hash");
 		if (StringUtils.isEmpty(captchaPassCookie)) {
 			throw new InvalidResponseException();
 		}
 		lastCaptchaPassData = captchaPassData;
 		lastCaptchaPassCookie = captchaPassCookie;
 		if (captchaPassCookie != null) {
-			int filesCount = jsonObject.optInt("files");
-			if (filesCount > 0) {
-				configuration.setMaxFilesCount(filesCount);
-			}
+			configuration.setMaxFilesCount(PASSCODUBOYAR_MAX_FILES);
 			configuration.storeCookie(COOKIE_PASSCODE_AUTH, captchaPassCookie, "Passcode Auth");
 		}
 		return captchaPassCookie;
