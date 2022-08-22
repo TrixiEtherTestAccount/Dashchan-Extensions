@@ -31,17 +31,16 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.TimeZone;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
-import org.jsoup.select.Elements;
 
 public class DvachChanPerformer extends ChanPerformer {
 	private static final String COOKIE_USERCODE_AUTH = "usercode_auth";
@@ -479,157 +478,173 @@ public class DvachChanPerformer extends ChanPerformer {
 	@SuppressWarnings("SwitchStatementWithTooFewBranches")
 	@Override
 	public ReadBoardsResult onReadBoards(ReadBoardsData data) throws HttpException, InvalidResponseException {
+
 		DvachChanConfiguration configuration = DvachChanConfiguration.get(this);
 		DvachChanLocator locator = DvachChanLocator.get(this);
-		Uri uri = locator.buildPath("boards.json");
-		HttpResponse response = new HttpRequest(uri, data).addCookie(buildCookiesWithCaptchaPass()).perform();
-		try (InputStream input = response.open();
-				JsonSerial.Reader reader = JsonSerial.reader(input)) {
-			HashMap<String, ArrayList<Board>> boardsMap = new HashMap<>();
-			reader.startObject();
-			while (!reader.endStruct()) {
-				switch (reader.nextName()) {
-					case "boards": {
-						reader.startArray();
-						while (!reader.endStruct()) {
-							String category = null;
-							String boardName = null;
-							String title = null;
-							String description = null;
-							String defaultName = null;
-							Integer bumpLimit = null;
-							reader.startObject();
-							while (!reader.endStruct()) {
-								switch (reader.nextName()) {
-									case "category": {
-										category = reader.nextString();
-										break;
-									}
-									case "id": {
-										boardName = reader.nextString();
-										break;
-									}
-									case "name": {
-										title = reader.nextString();
-										break;
-									}
-									case "info": {
-										description = reader.nextString();
-										break;
-									}
-									case "default_name": {
-										defaultName = reader.nextString();
-										break;
-									}
-									case "bump_limit": {
-										bumpLimit = reader.nextInt();
-										break;
-									}
-									default: {
-										reader.skip();
-										break;
-									}
-								}
-							}
-							if (!StringUtils.isEmpty(category) && !StringUtils.isEmpty(boardName) &&
-									!StringUtils.isEmpty(title)) {
-								ArrayList<Board> boards = boardsMap.get(category);
-								if (boards == null) {
-									boards = new ArrayList<>();
-									boardsMap.put(category, boards);
-								}
-								description = configuration.transformBoardDescription(description);
-								boards.add(new Board(boardName, title, description));
-								configuration.updateFromBoardsJson(boardName, defaultName, bumpLimit);
-							}
-						}
-						break;
-					}
-					default: {
-						reader.skip();
-						break;
-					}
-				}
-			}
-			ArrayList<BoardCategory> boardCategories = new ArrayList<>();
-			for (String title : PREFERRED_BOARDS_ORDER) {
-				for (HashMap.Entry<String, ArrayList<Board>> entry : boardsMap.entrySet()) {
-					if (title.equals(entry.getKey())) {
-						ArrayList<Board> boards = entry.getValue();
-						Collections.sort(boards);
-						boardCategories.add(new BoardCategory(title, boards));
-						break;
-					}
-				}
-			}
-			return new ReadBoardsResult(boardCategories);
-		} catch (ParseException e) {
-			throw new InvalidResponseException(e);
-		} catch (IOException e) {
-			throw response.fail(e);
+		Uri uri = locator.buildPath("/api/mobile/v2/boards");
+
+		JSONArray jsonArray = null;
+		try {
+			String value = new HttpRequest(uri, data)
+					.setGetMethod()
+					.addCookie(buildCookiesWithCaptchaPass()).perform().readString();
+			jsonArray = new JSONArray(value);
+		} catch (HttpException e) {
+			throw new HttpException(e.getResponseCode(), e.getMessage());
+		} catch (JSONException e) {
+			throw new InvalidResponseException();
 		}
+
+		HashMap<String, ArrayList<Board>> boardsMap = new HashMap<>();
+
+		try {
+			for (int i = 0; i < jsonArray.length(); i++) {
+
+				JSONObject jsonObject = jsonArray.getJSONObject(i);
+
+				String category = null;
+				String boardName = null;
+				String title = null;
+				String description = null;
+				String defaultName = null;
+				Integer bumpLimit = null;
+
+				Iterator<String> keys = jsonObject.keys();
+
+				while (keys.hasNext()) {
+					switch (keys.next()) {
+						case "category": {
+							category = jsonObject.getString("category");
+							break;
+						}
+						case "id": {
+							boardName = jsonObject.getString("id");;
+							break;
+						}
+						case "name": {
+							title = jsonObject.getString("name");;
+							break;
+						}
+						case "info": {
+							description = jsonObject.getString("info");;
+							break;
+						}
+						case "default_name": {
+							defaultName = jsonObject.getString("default_name");;
+							break;
+						}
+						case "bump_limit": {
+							bumpLimit = Integer.getInteger(jsonObject.getString("bump_limit"));;
+							break;
+						}
+						default: {
+							break;
+						}
+					}
+				}
+
+				if (!StringUtils.isEmpty(category) && !StringUtils.isEmpty(boardName) &&
+						!StringUtils.isEmpty(title)) {
+					ArrayList<Board> boards = boardsMap.get(category);
+					if (boards == null) {
+						boards = new ArrayList<>();
+						boardsMap.put(category, boards);
+					}
+					description = configuration.transformBoardDescription(description);
+					boards.add(new Board(boardName, title, description));
+					configuration.updateFromBoardsJson(boardName, defaultName, bumpLimit);
+				}
+
+			}
+		} catch (JSONException e) {
+			throw new InvalidResponseException();
+		}
+
+		ArrayList<BoardCategory> boardCategories = new ArrayList<>();
+		for (String title : PREFERRED_BOARDS_ORDER) {
+			for (HashMap.Entry<String, ArrayList<Board>> entry : boardsMap.entrySet()) {
+				if (title.equals(entry.getKey())) {
+					ArrayList<Board> boards = entry.getValue();
+					Collections.sort(boards);
+					boardCategories.add(new BoardCategory(title, boards));
+					break;
+				}
+			}
+		}
+
+		return new ReadBoardsResult(boardCategories);
+
 	}
 
 	@SuppressWarnings("SwitchStatementWithTooFewBranches")
 	@Override
 	public ReadUserBoardsResult onReadUserBoards(ReadUserBoardsData data) throws HttpException,
 			InvalidResponseException {
+
 		DvachChanConfiguration configuration = DvachChanConfiguration.get(this);
 		DvachChanLocator locator = DvachChanLocator.get(this);
-		Uri uri = locator.buildPath("userboards.json");
-		HttpResponse response = new HttpRequest(uri, data).addCookie(buildCookiesWithCaptchaPass()).perform();
-		try (InputStream input = response.open();
-				JsonSerial.Reader reader = JsonSerial.reader(input)) {
-			ArrayList<Board> boards = new ArrayList<>();
-			reader.startObject();
-			while (!reader.endStruct()) {
-				switch (reader.nextName()) {
-					case "boards": {
-						reader.startArray();
-						while (!reader.endStruct()) {
-							String boardName = null;
-							String title = null;
-							String description = null;
-							reader.startObject();
-							while (!reader.endStruct()) {
-								switch (reader.nextName()) {
-									case "id": {
-										boardName = reader.nextString();
-										break;
-									}
-									case "name": {
-										title = reader.nextString();
-										break;
-									}
-									case "info": {
-										description = reader.nextString();
-										break;
-									}
-									default: {
-										reader.skip();
-										break;
-									}
-								}
-							}
-							if (!StringUtils.isEmpty(boardName) && !StringUtils.isEmpty(title)) {
-								description = configuration.transformBoardDescription(description);
-								boards.add(new Board(boardName, title, description));
-							}
+		Uri uri = locator.buildPath("/api/mobile/v2/boards");
+
+		JSONArray jsonArray = null;
+		try {
+			String value = new HttpRequest(uri, data)
+					.setGetMethod()
+					.addCookie(buildCookiesWithCaptchaPass()).perform().readString();
+			jsonArray = new JSONArray(value);
+		} catch (HttpException e) {
+			throw new HttpException(e.getResponseCode(), e.getMessage());
+		} catch (JSONException e) {
+			throw new InvalidResponseException();
+		}
+
+		ArrayList<Board> boards = new ArrayList<>();
+
+		try {
+			for (int i = 0; i < jsonArray.length(); i++) {
+
+				JSONObject jsonObject = jsonArray.getJSONObject(i);
+
+				String boardName = null;
+				String title = null;
+				String description = null;
+
+				Iterator<String> keys = jsonObject.keys();
+
+				while (keys.hasNext()) {
+					switch (keys.next()) {
+						case "id": {
+							boardName = jsonObject.getString("id");
+							;
+							break;
 						}
-						break;
+						case "name": {
+							title = jsonObject.getString("name");
+							;
+							break;
+						}
+						case "info": {
+							description = jsonObject.getString("info");
+							;
+							break;
+						}
+						default: {
+							break;
+						}
 					}
-					default: {
-						reader.skip();
-						break;
+					if (jsonObject.getString("category").equals("Пользовательские")) {
+						if (!StringUtils.isEmpty(boardName) && !StringUtils.isEmpty(title)) {
+							description = configuration.transformBoardDescription(description);
+							boards.add(new Board(boardName, title, description));
+						}
 					}
 				}
 			}
-			return new ReadUserBoardsResult(boards);
-		} catch (ParseException e) {
-			throw new InvalidResponseException(e);
-		} catch (IOException e) {
-			throw response.fail(e);
+		} catch (JSONException e) {
+			throw new InvalidResponseException();
 		}
+
+		return new ReadUserBoardsResult(boards);
+
 	}
 
 	@SuppressWarnings("SwitchStatementWithTooFewBranches")
