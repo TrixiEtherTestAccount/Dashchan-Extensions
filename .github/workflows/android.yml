@@ -33,7 +33,7 @@ jobs:
       with:
         repository: ${{ secrets.KEYSTORE_DASHCHAN_REPO }}
         token: ${{ secrets.KEYSTORE_ACCESS_TOKEN }}
-        path: keystore
+        path: extensions/dvach/keystore
 
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
