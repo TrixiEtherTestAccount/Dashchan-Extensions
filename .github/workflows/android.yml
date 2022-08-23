@@ -39,14 +39,12 @@ jobs:
       run: chmod +x gradlew
       
     - name: Build with Gradle
-      run: |
-        ./gradlew :extensions:dvach:assembleRelease
-        ls extensions\dvach\build\outputs\apk
-        ls extensions\dvach\build\outputs\apk\release
+      run: ./gradlew :extensions:dvach:assembleRelease
+
       
     - name: Upload APK
       uses: actions/upload-artifact@v2
       with:
         name: DashchanDvach.apk
-        path: extensions\dvach\build\outputs\apk\release\DashchanDvach-release.apk
+        path: extensions/dvach/build/outputs/apk/release/DashchanDvach-release.apk
       
