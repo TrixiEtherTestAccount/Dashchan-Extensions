@@ -127,6 +127,16 @@ public class DvachChanPerformer extends ChanPerformer {
 							boardSpeed = reader.nextInt();
 							break;
 						}
+						case "board": {
+							reader.startObject();
+							while (!reader.endStruct()) {
+								String boardObjectName = reader.nextName();
+								if(!boardConfiguration.handle(reader, boardObjectName)) {
+									reader.skip();
+								}
+							}
+							break;
+						}
 						default: {
 							reader.skip();
 							break;
@@ -312,6 +322,16 @@ public class DvachChanPerformer extends ChanPerformer {
 										}
 										while (!reader.endStruct()) {
 											reader.skip();
+										}
+										break;
+									}
+									case "board": {
+										reader.startObject();
+										while (!reader.endStruct()) {
+											String boardObjectName = reader.nextName();
+											if (!boardConfiguration.handle(reader, boardObjectName)) {
+												reader.skip();
+											}
 										}
 										break;
 									}
