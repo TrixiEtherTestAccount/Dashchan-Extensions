@@ -519,28 +519,14 @@ public class DvachModelMapper {
 		return posts;
 	}
 
-	public static ArrayList<Post> createPostsFromHtml(String html) {
-		ArrayList<Post> posts = new ArrayList<>();
+	public static List<String> createPostsFromHtml(String html) {
 
+		List<String> posts = new ArrayList<>();
 		Document doc = Jsoup.parse(html);
 		Elements elements = doc.select("div.box");
 
 		for (Element el : elements) {
-
-			Post post = new Post();
-			post.setPostNumber(el.id().split("post-")[1]);
-
-			String parentLink = el.select("span.reflink > a").attr("href");
-			String p = "\\/res\\/([\\d]+)\\.html";
-			Pattern r = Pattern.compile(p);
-			Matcher m = r.matcher(parentLink);
-			if (m.find())
-				post.setParentPostNumber(m.group(1));
-
-			post.setName(el.select("span.ananimas").text());
-			post.setComment(el.select("blockquote").text());
-
-			posts.add(post);
+			posts.add(el.id().split("post-")[1]);
 		}
 
 		return posts;
