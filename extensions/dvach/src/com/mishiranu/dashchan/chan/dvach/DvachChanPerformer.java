@@ -490,7 +490,42 @@ public class DvachChanPerformer extends ChanPerformer {
 					"text", data.searchQuery);
 			HttpResponse response = new HttpRequest(uri, data).addCookie(buildCookiesWithCaptchaPass())
 					.setPostMethod(entity).setRedirectHandler(HttpRequest.RedirectHandler.STRICT).perform();
-			List<Post> posts = DvachModelMapper.createPostsFromHtml(response.readString());
+
+			List<String> postsNumbers = DvachModelMapper.createPostsFromHtml(response.readString());
+			List<Post> posts = new ArrayList<>();
+
+			for (String number : postsNumbers) {
+
+				uri = locator.createMobileApiV2Uri("post", data.boardName, number);
+				response = new HttpRequest(uri, data).addCookie(buildCookiesWithCaptchaPass())
+						.setGetMethod().setRedirectHandler(HttpRequest.RedirectHandler.STRICT).perform();
+
+				try(InputStream input = response.open(); JsonSerial.Reader reader = JsonSerial.reader(input)) {
+
+					reader.startObject();
+					while (!reader.endStruct()) {
+						switch (reader.nextName()) {
+							case "post": {
+								Post post = DvachModelMapper.createPost(reader, this, data.boardName, null,
+										configuration.isSageEnabled(data.boardName), null);
+								posts.add(post);
+								break;
+							}
+							default: {
+								reader.skip();
+								break;
+							}
+						}
+					}
+
+				} catch (ParseException e) {
+					throw new InvalidResponseException();
+				} catch (IOException e) {
+					throw response.fail(e);
+				}
+
+			}
+
 			return new ReadSearchPostsResult(posts);
 		}
 	}
