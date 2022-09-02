@@ -32,6 +32,7 @@ public class DvachChanConfiguration extends ChanConfiguration {
 	private static final String KEY_SAGE_ENABLED = "sage_enabled";
 	private static final String KEY_FLAGS_ENABLED = "flags_enabled";
 	private static final String KEY_MAX_COMMENT_LENGTH = "max_comment_length";
+	private static final String KEY_LIKES_ENABLED = "likes_enabled";
 
 	public DvachChanConfiguration() {
 		request(OPTION_READ_THREAD_PARTIALLY);
@@ -54,6 +55,7 @@ public class DvachChanConfiguration extends ChanConfiguration {
 		board.allowArchive = true;
 		board.allowPosting = true;
 		board.allowReporting = true;
+		board.allowVotes = get(boardName, KEY_LIKES_ENABLED, false);
 		return board;
 	}
 
@@ -108,6 +110,14 @@ public class DvachChanConfiguration extends ChanConfiguration {
 		return reporting;
 	}
 
+	@Override
+	public Voting obtainVotingConfiguration(String boardName) {
+		Voting voting = new Voting();
+		voting.allowLike = true;
+		voting.allowDislike = true;
+		return voting;
+	}
+
 	private volatile int filesCount = -1;
 	private volatile boolean maxFilesCountEnabled = false;
 
@@ -159,6 +169,7 @@ public class DvachChanConfiguration extends ChanConfiguration {
 		editBoards(boardName, KEY_SUBJECTS_ENABLED, configuration.subjectsEnabled);
 		editBoards(boardName, KEY_SAGE_ENABLED, configuration.sageEnabled);
 		editBoards(boardName, KEY_FLAGS_ENABLED, configuration.flagsEnabled);
+		editBoards(boardName, KEY_LIKES_ENABLED, configuration.likesEnabled);
 		if (configuration.pagesCount > 0) {
 			storePagesCount(boardName, configuration.pagesCount);
 		}
