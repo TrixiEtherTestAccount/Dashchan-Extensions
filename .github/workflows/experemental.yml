@@ -21,6 +21,11 @@ jobs:
     - uses: actions/checkout@v3
       with:
         submodules: 'recursive'
+    - name: Checkout Dvach-Libraries
+      with:
+        repository: trixiether/Dashchan-Library
+        ref: master
+        path: library
     - name: set up JDK 11
       uses: actions/setup-java@v3
       with:
