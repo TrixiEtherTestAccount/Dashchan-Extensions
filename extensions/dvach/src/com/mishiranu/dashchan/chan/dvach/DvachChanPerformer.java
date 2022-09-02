@@ -1287,4 +1287,42 @@ public class DvachChanPerformer extends ChanPerformer {
 			throw new InvalidResponseException(e);
 		}
 	}
+
+	@Override
+	public SendVotePostResult onSendVotePost(SendVotePostData data) throws HttpException, ApiException,
+			InvalidResponseException {
+		DvachChanLocator locator = DvachChanLocator.get(this);
+		Uri uri = null;
+		if (data.isLike == true) {
+			uri = locator.buildPath("api/like?board=" + data.boardName + "&num=" + data.postNumber);
+		} else {
+			uri = locator.buildPath("api/dislike?board=" + data.boardName + "&num=" + data.postNumber);
+		}
+
+		JSONObject jsonObject;
+		HttpResponse response;
+		try {
+			jsonObject = new JSONObject(new HttpRequest(uri, data).setGetMethod().setRedirectHandler(HttpRequest.RedirectHandler.STRICT).perform().readString());
+		} catch (HttpException | JSONException e) {
+			throw new InvalidResponseException(e);
+		}
+
+		try {
+			String result = CommonUtils.getJsonString(jsonObject, "result");
+			if (!result.equals("1")) {
+				String error = CommonUtils.getJsonString(jsonObject, "error");
+				int errorType = 0;
+				if (error.contains("Постинг запрещён.")) {
+					errorType = ApiException.VOTE_ERROR_POSTING_PROHIBITED;
+				}
+				if (errorType != 0) {
+					throw new ApiException(errorType);
+				}
+			}
+		} catch (JSONException e) {
+			throw new InvalidResponseException(e);
+		}
+
+		return null;
+	}
 }
