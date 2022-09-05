@@ -14,7 +14,6 @@ import chan.content.model.Icon;
 import chan.content.model.Post;
 import chan.content.model.Posts;
 import chan.content.model.ThreadSummary;
-import chan.content.model.Vote;
 import chan.text.JsonSerial;
 import chan.text.ParseException;
 import chan.util.StringUtils;
@@ -57,7 +56,6 @@ public class DvachModelMapper {
 		public Boolean subjectsEnabled;
 		public Boolean sageEnabled;
 		public Boolean flagsEnabled;
-		public Boolean likesEnabled;
 
 		@SuppressWarnings("BooleanMethodIsAlwaysInverted")
 		public boolean handle(JsonSerial.Reader reader, String name) throws IOException, ParseException {
@@ -148,10 +146,6 @@ public class DvachModelMapper {
 					flagsEnabled = reader.nextBoolean();
 					return true;
 				}
-				case "enable_likes": {
-					likesEnabled = reader.nextBoolean();
-					return true;
-				}
 				default: {
 					return false;
 				}
@@ -230,8 +224,6 @@ public class DvachModelMapper {
 		String name = null;
 		String tripcode = null;
 		ArrayList<Icon> icons = null;
-		int likes = 0;
-		int dislikes = 0;
 
 		reader.startObject();
 		while (!reader.endStruct()) {
@@ -395,14 +387,6 @@ public class DvachModelMapper {
 					}
 					break;
 				}
-				case "likes": {
-					likes = reader.nextInt();
-					break;
-				}
-				case "dislikes": {
-					dislikes = reader.nextInt();
-					break;
-				}
 				default: {
 					reader.skip();
 					break;
@@ -465,10 +449,6 @@ public class DvachModelMapper {
 		post.setIdentifier(identifier);
 		post.setTripcode(tripcode);
 		post.setCapcode(capcode);
-
-		if (likes != 0 || dislikes != 0) {
-			post.setVote(likes, dislikes);
-		}
 
 		if (userAgentData != null) {
 			int index1 = userAgentData.indexOf('(');
