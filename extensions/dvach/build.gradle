@@ -18,11 +18,12 @@ android {
 			try {
 				file('keystore.properties').newInputStream().withCloseable { keystoreProperties.load(it) }
 			} catch (IOException ignored) {
-				// Ignore
+				keystoreProperties = null
 			}
 
 			if (keystoreProperties == null) {
 				//git workflow build
+				System.out.println("keystoreProperties is null")
 				storeFile System.getenv("KEYSTORE_FILENAME")
 				storePassword System.getenv("KEYSTORE_PASSWORD")
 				keyAlias System.getenv("RELEASE_SIGN_KEY_ALIAS")
