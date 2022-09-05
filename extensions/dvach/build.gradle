@@ -24,7 +24,8 @@ android {
 			if (keystoreProperties == null) {
 				//git workflow build
 				System.out.println("keystoreProperties is null")
-				storeFile System.getenv("KEYSTORE_FILENAME")
+				def key_file = System.getenv("KEYSTORE_FILENAME")
+			        storeFile file(key_file != null ? key_file : "keystore/dashchan")
 				storePassword System.getenv("KEYSTORE_PASSWORD")
 				keyAlias System.getenv("RELEASE_SIGN_KEY_ALIAS")
 				keyPassword System.getenv("RELEASE_SIGN_KEY_PASSWORD")
