@@ -5,6 +5,7 @@ import android.graphics.Bitmap;
 import android.net.Uri;
 
 import chan.content.ApiException;
+import chan.content.ChanConfiguration;
 import chan.content.ChanPerformer;
 import chan.content.InvalidResponseException;
 import chan.content.RedirectException;
@@ -974,6 +975,7 @@ public class DvachChanPerformer extends ChanPerformer {
 						throw new InvalidResponseException();
 					}
 					result.setImage(image);
+					/*
 					switch (jsonObject.optString("input")) {
 						case "numeric": {
 							result.setInput(DvachChanConfiguration.Captcha.Input.NUMERIC);
@@ -987,7 +989,12 @@ public class DvachChanPerformer extends ChanPerformer {
 							result.setInput(DvachChanConfiguration.Captcha.Input.ALL);
 							break;
 						}
-					}
+					}*/
+
+					// hotfix 07.09.2022
+					// temporarily set all input types for captcha
+					result.setInput(DvachChanConfiguration.Captcha.Input.ALL);
+
 				} else if (DvachChanConfiguration.CAPTCHA_TYPE_RECAPTCHA_2.equals(data.captchaType) ||
 						DvachChanConfiguration.CAPTCHA_TYPE_RECAPTCHA_2_INVISIBLE.equals(data.captchaType)) {
 					result = new ReadCaptchaResult(CaptchaState.CAPTCHA, captchaData);
