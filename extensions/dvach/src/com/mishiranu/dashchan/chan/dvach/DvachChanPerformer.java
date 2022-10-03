@@ -858,7 +858,7 @@ public class DvachChanPerformer extends ChanPerformer {
 		DvachChanLocator locator = DvachChanLocator.get(this);
 		Uri uri = locator.buildPath("/user/passlogin");
 		UrlEncodedEntity entity = new UrlEncodedEntity("passcode", captchaPassData);
-		
+
 		HttpResponse response = null;
 		try {
 			response = new HttpRequest(uri, preset).addCookie(buildCookies(null))
@@ -866,7 +866,7 @@ public class DvachChanPerformer extends ChanPerformer {
 		} catch (HttpException e) {
 			throw new InvalidResponseException();
 		}
-		
+
 		String captchaPassCookie = "";
 		if (response != null) {
 			captchaPassCookie = response.getCookieValue("passcode_auth");
@@ -1200,8 +1200,13 @@ public class DvachChanPerformer extends ChanPerformer {
 				errorType = ApiException.SEND_ERROR_CAPTCHA;
 				break;
 			}
+			default: {
+				if (reasonIsBanMessage(reason)){
+					errorType = ApiException.SEND_ERROR_BANNED;
+				}
+			}
 		}
-		if (error == 6) {
+		if (errorType == ApiException.SEND_ERROR_BANNED) {
 			ApiException.BanExtra banExtra = new ApiException.BanExtra();
 			Matcher matcher = PATTERN_BAN.matcher(reason);
 			while (matcher.find()) {
@@ -1234,13 +1239,21 @@ public class DvachChanPerformer extends ChanPerformer {
 			lastCaptchaPassData = null;
 			lastCaptchaPassCookie = null;
 		}
-		if (errorType != 0) {
+		if (extra != null) {
 			throw new ApiException(errorType, extra);
 		}
 		if (!StringUtils.isEmpty(reason)) {
 			throw new ApiException(reason);
 		}
 		throw new InvalidResponseException();
+	}
+
+	private boolean reasonIsBanMessage(String reason){
+		if (!StringUtils.isEmpty(reason)){
+			String lowerCaseReason = reason.toLowerCase();
+			return lowerCaseReason.contains("постинг запрещён") || lowerCaseReason.contains("бан");
+		}
+		return false;
 	}
 
 	@Override
