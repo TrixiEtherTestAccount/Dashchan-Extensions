@@ -1,13 +1,17 @@
 package com.mishiranu.dashchan.chan.dvach;
 
+import android.content.res.Resources;
 import android.util.Pair;
+
 import chan.content.ChanConfiguration;
 import chan.util.CommonUtils;
 import chan.util.StringUtils;
+
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
+
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -33,6 +37,8 @@ public class DvachChanConfiguration extends ChanConfiguration {
 	private static final String KEY_FLAGS_ENABLED = "flags_enabled";
 	private static final String KEY_MAX_COMMENT_LENGTH = "max_comment_length";
 
+	private static final String KEY_CAPTCHA_FULL_KEYBOARD = "captcha_full_keyboard";
+
 	public DvachChanConfiguration() {
 		request(OPTION_READ_THREAD_PARTIALLY);
 		request(OPTION_READ_SINGLE_POST);
@@ -44,6 +50,7 @@ public class DvachChanConfiguration extends ChanConfiguration {
 		for (String captchaType : CAPTCHA_TYPES.keySet()) {
 			addCaptchaType(captchaType);
 		}
+		addCustomPreference(KEY_CAPTCHA_FULL_KEYBOARD, false);
 	}
 
 	@Override
@@ -184,4 +191,21 @@ public class DvachChanConfiguration extends ChanConfiguration {
 		}
 		return description;
 	}
+
+	@Override
+	public CustomPreference obtainCustomPreferenceConfiguration(String key) {
+		if (key.equals(KEY_CAPTCHA_FULL_KEYBOARD)) {
+			Resources resources = getResources();
+			String title = resources.getString(R.string.preference_captcha_full_keyboard);
+			CustomPreference captchaFullKeyboardPreference = new CustomPreference();
+			captchaFullKeyboardPreference.title = title;
+			return captchaFullKeyboardPreference;
+		}
+		return null;
+	}
+
+	boolean isFullKeyboardForCaptchaEnabled() {
+		return get(null, KEY_CAPTCHA_FULL_KEYBOARD, false);
+	}
+
 }
