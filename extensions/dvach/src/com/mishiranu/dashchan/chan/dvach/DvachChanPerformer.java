@@ -5,7 +5,6 @@ import android.graphics.Bitmap;
 import android.net.Uri;
 
 import chan.content.ApiException;
-import chan.content.ChanConfiguration;
 import chan.content.ChanPerformer;
 import chan.content.InvalidResponseException;
 import chan.content.RedirectException;
@@ -975,25 +974,25 @@ public class DvachChanPerformer extends ChanPerformer {
 						throw new InvalidResponseException();
 					}
 					result.setImage(image);
-					/*
-					switch (jsonObject.optString("input")) {
-						case "numeric": {
-							result.setInput(DvachChanConfiguration.Captcha.Input.NUMERIC);
-							break;
-						}
-						case "english": {
-							result.setInput(DvachChanConfiguration.Captcha.Input.LATIN);
-							break;
-						}
-						default: {
-							result.setInput(DvachChanConfiguration.Captcha.Input.ALL);
-							break;
-						}
-					}*/
 
-					// hotfix 07.09.2022
-					// temporarily set all input types for captcha
-					result.setInput(DvachChanConfiguration.Captcha.Input.ALL);
+					if (configuration.isFullKeyboardForCaptchaEnabled()) {
+						result.setInput(DvachChanConfiguration.Captcha.Input.ALL);
+					} else {
+						switch (jsonObject.optString("input")) {
+							case "numeric": {
+								result.setInput(DvachChanConfiguration.Captcha.Input.NUMERIC);
+								break;
+							}
+							case "english": {
+								result.setInput(DvachChanConfiguration.Captcha.Input.LATIN);
+								break;
+							}
+							default: {
+								result.setInput(DvachChanConfiguration.Captcha.Input.ALL);
+								break;
+							}
+						}
+					}
 
 				} else if (DvachChanConfiguration.CAPTCHA_TYPE_RECAPTCHA_2.equals(data.captchaType) ||
 						DvachChanConfiguration.CAPTCHA_TYPE_RECAPTCHA_2_INVISIBLE.equals(data.captchaType)) {
