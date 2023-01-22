@@ -39,6 +39,7 @@ public class DvachChanConfiguration extends ChanConfiguration {
 	private static final String KEY_LIKES_ENABLED = "likes_enabled";
 
 	private static final String KEY_CAPTCHA_FULL_KEYBOARD = "captcha_full_keyboard";
+	private static final int CAPTCHA_TTL = 90;
 
 	public DvachChanConfiguration() {
 		request(OPTION_READ_THREAD_PARTIALLY);
@@ -73,6 +74,7 @@ public class DvachChanConfiguration extends ChanConfiguration {
 			captcha.title = "2ch Captcha";
 			captcha.input = Captcha.Input.ALL;
 			captcha.validity = Captcha.Validity.IN_THREAD;
+			captcha.ttl = CAPTCHA_TTL;
 			return captcha;
 		}
 		return null;
