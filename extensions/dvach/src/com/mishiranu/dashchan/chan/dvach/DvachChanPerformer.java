@@ -969,11 +969,29 @@ public class DvachChanPerformer extends ChanPerformer {
 					captchaData.put(CaptchaData.CHALLENGE, id);
 					uri = locator.buildPath("api", "captcha", remoteCaptchaType, "show").buildUpon()
 							.appendQueryParameter("id", id).build();
-					Bitmap image = new HttpRequest(uri, data).perform().readBitmap();
-					if (image == null) {
+					Bitmap captchaImage;
+					int loadCaptchaImageAttempts = 3;
+					while (true) {
+						try {
+							captchaImage = new HttpRequest(uri, data).perform().readBitmap();
+							break;
+						} catch (HttpException e) {
+							loadCaptchaImageAttempts--;
+							if(loadCaptchaImageAttempts == 0 || e.getResponseCode() != HttpURLConnection.HTTP_INTERNAL_ERROR){
+								throw e;
+							}
+							try {
+								int delayBetweenLoadCaptchaImageAttemptsMillis = 500;
+								Thread.sleep(delayBetweenLoadCaptchaImageAttemptsMillis);
+							} catch (InterruptedException ex) {
+								throw e;
+							}
+						}
+					}
+					if (captchaImage == null) {
 						throw new InvalidResponseException();
 					}
-					result.setImage(image);
+					result.setImage(captchaImage);
 
 					if (configuration.isFullKeyboardForCaptchaEnabled()) {
 						result.setInput(DvachChanConfiguration.Captcha.Input.ALL);
