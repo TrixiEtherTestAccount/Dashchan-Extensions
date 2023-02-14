@@ -1018,7 +1018,7 @@ public class DvachChanPerformer extends ChanPerformer {
 	}
 
 	private static final Pattern PATTERN_TAG = Pattern.compile("(.*) /([^/]*)/");
-	private static final Pattern PATTERN_BAN = Pattern.compile("([^ ]*?): (.*?)(?:\\.|$)");
+	private static final Pattern PATTERN_BAN = Pattern.compile("[^ ]*?: (\\d+)\\. .*: (.*(?=//![a-z]+\\.)|.*(?=[А-Я][а-я]{2} [А-Я][а-я]{2} \\d{2} (?:\\d{2}:?){3} \\d{4}$)|.*$)(?:.*?[а-я] )?([А-Я].*|)");
 
 	private static final SimpleDateFormat DATE_FORMAT_BAN;
 
@@ -1208,29 +1208,23 @@ public class DvachChanPerformer extends ChanPerformer {
 		if (errorType == ApiException.SEND_ERROR_BANNED) {
 			ApiException.BanExtra banExtra = new ApiException.BanExtra();
 			Matcher matcher = PATTERN_BAN.matcher(reason);
-			while (matcher.find()) {
-				String name = StringUtils.emptyIfNull(matcher.group(1));
-				String value = StringUtils.emptyIfNull(matcher.group(2));
-				if ("Бан".equals(name)) {
-					banExtra.setId(value);
-				} else if ("Причина".equals(name)) {
-					String end = " //!" + data.boardName;
-					if (value.endsWith(end)) {
-						value = value.substring(0, value.length() - end.length());
-					}
-					banExtra.setMessage(value);
-				} else if ("Истекает".equals(name)) {
-					int index = value.indexOf(' ');
-					if (index >= 0) {
-						value = value.substring(index + 1);
-					}
+			if(matcher.find()) {
+				String banId = StringUtils.emptyIfNull(matcher.group(1));
+				banExtra.setId(banId);
+				String banMessage = StringUtils.emptyIfNull(matcher.group(2));
+				banExtra.setMessage(banMessage);
+				String banExpireDate = StringUtils.emptyIfNull(matcher.group(3));
+				if (!StringUtils.isEmpty(banExpireDate)) {
 					try {
-						long date = Objects.requireNonNull(DATE_FORMAT_BAN.parse(value)).getTime();
+						long date = Objects.requireNonNull(DATE_FORMAT_BAN.parse(banExpireDate)).getTime();
 						banExtra.setExpireDate(date);
 					} catch (java.text.ParseException e) {
 						// Ignore exception
 					}
 				}
+			}
+			else {
+				banExtra.setMessage(reason);
 			}
 			extra = banExtra;
 		}
