@@ -563,20 +563,32 @@ public class FourchanChanPerformer extends ChanPerformer {
 			String challenge;
 			Bitmap image;
 			Bitmap background;
-			int wait = 2000;
 			while (true) {
 				try {
 					JSONObject jsonObject = new JSONObject(new HttpRequest(uri, data)
 							.addCookie(COOKIE_FOURCHAN_PASS, configuration.getCookie(COOKIE_FOURCHAN_PASS))
 							.perform().readString());
 					String error = jsonObject.optString("error");
-					if ("You have to wait a while before doing this again".equals(error)) {
-						try {
-							Thread.sleep(wait);
-						} catch (InterruptedException e) {
-							throw new HttpException(0, null);
+					boolean captchaOnCooldown = "You have to wait a while before doing this again".equals(error);
+					if (captchaOnCooldown) {
+						int captchaCooldownSeconds = jsonObject.optInt("cd", -1);
+						if(captchaCooldownSeconds == -1) throw new HttpException(0, null);
+						int reasonableCaptchaCooldownWaitSeconds = 10;
+						if(captchaCooldownSeconds <= reasonableCaptchaCooldownWaitSeconds){
+							try {
+								/*  The server returns only whole cooldown seconds in the response but it can actually be decimal.
+									For example: the server returns 10 seconds cooldown but in reality it is 10.5 seconds.
+									Add 1 second to the cooldown to avoid this issue.
+								*/
+								Thread.sleep((captchaCooldownSeconds + 1) * 1000L);
+							}
+							catch (InterruptedException e){
+								throw new HttpException(0, null);
+							}
 						}
-						wait += 1000;
+						else {
+							throw new HttpException(0, configuration.getResources().getQuantityString(R.plurals.capthca_cooldown_message__format, captchaCooldownSeconds, captchaCooldownSeconds));
+						}
 					} else {
 						challenge = jsonObject.getString("challenge");
 						byte[] imageBytes = Base64.decode(jsonObject.getString("img"), 0);
