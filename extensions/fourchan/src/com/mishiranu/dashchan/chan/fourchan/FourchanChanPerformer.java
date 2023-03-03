@@ -789,6 +789,10 @@ public class FourchanChanPerformer extends ChanPerformer {
 		HttpRequest request = new HttpRequest(uri, data)
 				.addCookie(buildCookies(captchaPassCookie))
 				.addCookie(COOKIE_FOURCHAN_PASS, fourchanPassCookie)
+				.addHeader("Sec-Fetch-Dest", "document")
+				.addHeader("Sec-Fetch-Mode", "navigate")
+				.addHeader("Sec-Fetch-Site", "same-site")
+				.addHeader("Sec-Fetch-User", "?1")
 				.addHeader(USER_AGENT_HTTP_HEADER_NAME, USER_AGENT_HTTP_HEADER_VALUE);
 
 		/*
