@@ -479,7 +479,7 @@ public class FourchanChanPerformer extends ChanPerformer {
 		lastCaptchaPassData = null;
 		lastCaptchaPassCookie = null;
 		FourchanChanLocator locator = FourchanChanLocator.get(this);
-		Uri uri = locator.createSysUri("auth");
+		Uri uri = locator.createSysUri(null, "auth");
 		UrlEncodedEntity entity = new UrlEncodedEntity("act", "do_login", "id", token, "pin", pin, "long_login", "yes");
 		HttpResponse response = new HttpRequest(uri, preset).setPostMethod(entity)
 				.setRedirectHandler(HttpRequest.RedirectHandler.STRICT).perform();
@@ -554,7 +554,7 @@ public class FourchanChanPerformer extends ChanPerformer {
 				return new ReadCaptchaResult(CaptchaState.NEED_LOAD, null);
 			}
 			String threadNumber = data.requirement == null ? data.threadNumber : "1";
-			Uri.Builder builder = locator.createSysUri("captcha").buildUpon()
+			Uri.Builder builder = locator.createSysUri(data.boardName,"captcha").buildUpon()
 					.appendQueryParameter("board", data.boardName);
 			if (threadNumber != null) {
 				builder.appendQueryParameter("thread_id", threadNumber);
@@ -563,10 +563,11 @@ public class FourchanChanPerformer extends ChanPerformer {
 			String challenge;
 			Bitmap image;
 			Bitmap background;
+			String fourchanPassCookie = getFourchanPassCookie(configuration, data.boardName);
 			while (true) {
 				try {
 					JSONObject jsonObject = new JSONObject(new HttpRequest(uri, data)
-							.addCookie(COOKIE_FOURCHAN_PASS, configuration.getCookie(COOKIE_FOURCHAN_PASS))
+							.addCookie(COOKIE_FOURCHAN_PASS, fourchanPassCookie)
 							.perform().readString());
 					String error = jsonObject.optString("error");
 					boolean captchaOnCooldown = "You have to wait a while before doing this again".equals(error);
@@ -714,12 +715,24 @@ public class FourchanChanPerformer extends ChanPerformer {
 				.setExpireDate(parseBanDate(fields.get("endDate")));
 	}
 
-	private void handleFourchanPass(HttpResponse response) {
-		String fourchanPass = response.getCookieValue(COOKIE_FOURCHAN_PASS);
-		if (fourchanPass != null) {
-			FourchanChanConfiguration configuration = FourchanChanConfiguration.get(this);
-			configuration.storeCookie(COOKIE_FOURCHAN_PASS, fourchanPass, "4chan Pass");
+	private void handleFourchanPass(HttpResponse response, String boardName) {
+		FourchanChanConfiguration configuration = FourchanChanConfiguration.get(this);
+		String fourchanPassCookie = response.getCookieValue(COOKIE_FOURCHAN_PASS);
+		if (fourchanPassCookie != null) {
+			String fourchanPassCookieKey = getFourchanPassCookieStoreKey(configuration, boardName);
+			String displayName = configuration.isSafeForWork(boardName) ? "4channel pass" : "4chan pass";
+			configuration.storeCookie(fourchanPassCookieKey, fourchanPassCookie, displayName);
 		}
+	}
+
+	private String getFourchanPassCookie(FourchanChanConfiguration configuration, String boardName){
+		String fourchanPassCookieKey = getFourchanPassCookieStoreKey(configuration, boardName);
+		return configuration.getCookie(fourchanPassCookieKey);
+	}
+
+	private String getFourchanPassCookieStoreKey(FourchanChanConfiguration configuration, String boardName){
+		String prefix = configuration.isSafeForWork(boardName) ? "4channel" : "4chan";
+		return prefix + "_" + COOKIE_FOURCHAN_PASS;
 	}
 
 	private static final Pattern PATTERN_POST_ERROR = Pattern.compile("<span id=\"errmsg\".*?>(.*?)</span>");
@@ -761,11 +774,14 @@ public class FourchanChanPerformer extends ChanPerformer {
 		}
 
 		FourchanChanLocator locator = FourchanChanLocator.get(this);
+		Uri uri = locator.createSysUri(data.boardName,data.boardName, "post");
 		FourchanChanConfiguration configuration = FourchanChanConfiguration.get(this);
 		boolean nsfwFix = !configuration.isSafeForWork(data.boardName) && configuration.isFixNsfwBoardsEnabled();
-		Uri uri = locator.createSysUri(data.boardName, "post");
-		HttpRequest request = new HttpRequest(uri, data).addCookie(buildCookies(captchaPassCookie))
-				.addCookie(COOKIE_FOURCHAN_PASS, configuration.getCookie(COOKIE_FOURCHAN_PASS));
+		String fourchanPassCookie = getFourchanPassCookie(configuration, data.boardName);
+		HttpRequest request = new HttpRequest(uri, data)
+				.addCookie(buildCookies(captchaPassCookie))
+				.addCookie(COOKIE_FOURCHAN_PASS, fourchanPassCookie);
+
 		if (nsfwFix) {
 			// More reliable fix: add non-browser User-Agent (breaks CloudFlare bypass)
 			request.addHeader("User-Agent", "curl/7.64.0");
@@ -776,7 +792,7 @@ public class FourchanChanPerformer extends ChanPerformer {
 		}
 		HttpResponse response = request.setPostMethod(entity)
 				.setRedirectHandler(HttpRequest.RedirectHandler.STRICT).perform();
-		handleFourchanPass(response);
+		handleFourchanPass(response, data.boardName);
 		String responseText = response.readString();
 
 		Matcher matcher = PATTERN_POST_SUCCESS.matcher(responseText);
@@ -837,7 +853,7 @@ public class FourchanChanPerformer extends ChanPerformer {
 	@Override
 	public SendDeletePostsResult onSendDeletePosts(SendDeletePostsData data) throws HttpException, ApiException {
 		FourchanChanLocator locator = FourchanChanLocator.get(this);
-		Uri uri = locator.createSysUri(data.boardName, "imgboard.php");
+		Uri uri = locator.createSysUri(data.boardName,data.boardName, "imgboard.php");
 		UrlEncodedEntity entity = new UrlEncodedEntity("mode", "usrdel", "pwd", data.password);
 		for (String postNumber : data.postNumbers) {
 			entity.add(postNumber, "delete");
@@ -886,7 +902,7 @@ public class FourchanChanPerformer extends ChanPerformer {
 		ReportReason reportReason = ReportReason.fromKey(data.type);
 		FourchanChanConfiguration configuration = FourchanChanConfiguration.get(this);
 		FourchanChanLocator locator = FourchanChanLocator.get(this);
-		Uri uri = locator.createSysUri(data.boardName, "imgboard.php").buildUpon()
+		Uri uri = locator.createSysUri(data.boardName,data.boardName, "imgboard.php").buildUpon()
 				.appendQueryParameter("mode", "report").appendQueryParameter("no", data.postNumbers.get(0)).build();
 		boolean retry = false;
 		String message;
@@ -905,10 +921,11 @@ public class FourchanChanPerformer extends ChanPerformer {
 			} else if (FourchanChanConfiguration.CAPTCHA_TYPE_RECAPTCHA_2.equals(captchaType)) {
 				entity.add("g-recaptcha-response", captchaData.get(CaptchaData.INPUT));
 			}
+			String fourchanPassCookie = getFourchanPassCookie(configuration, data.boardName);
 			HttpResponse response = new HttpRequest(uri, data).setPostMethod(entity)
-					.addCookie(COOKIE_FOURCHAN_PASS, configuration.getCookie(COOKIE_FOURCHAN_PASS))
+					.addCookie(COOKIE_FOURCHAN_PASS, fourchanPassCookie)
 					.setRedirectHandler(HttpRequest.RedirectHandler.STRICT).perform();
-			handleFourchanPass(response);
+			handleFourchanPass(response, data.boardName);
 			String responseText = response.readString();
 			Matcher matcher = PATTERN_REPORT_MESSAGE.matcher(responseText);
 			if (matcher.find()) {
