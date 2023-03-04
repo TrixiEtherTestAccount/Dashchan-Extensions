@@ -140,9 +140,14 @@ public class EndchanChanPerformer extends ChanPerformer {
 		boolean needCaptcha = false;
 		if (REQUIRE_REPORT.equals(data.requirement)) {
 			needCaptcha = true;
-		} else if (data.threadNumber == null) {
+		} else {
 			EndchanChanLocator locator = EndchanChanLocator.get(this);
-			Uri uri = locator.createBoardUri(data.boardName, 0);
+			Uri uri;
+			if (!StringUtils.isEmpty(data.threadNumber)) {
+				uri = locator.createThreadUri(data.boardName, data.threadNumber);
+			} else {
+				uri = locator.createBoardUri(data.boardName, 0);
+			}
 			String responseText = new HttpRequest(uri, data).perform().readString();
 			if (responseText.contains("<div id=\"captchaDiv\">")) {
 				needCaptcha = true;
@@ -198,7 +203,7 @@ public class EndchanChanPerformer extends ChanPerformer {
 				jsonObject.put("parameters", parametersObject);
 				parametersObject.put("boardUri", data.boardName);
 				if (data.threadNumber != null) {
-					parametersObject.put("threadId", data.threadNumber );
+					parametersObject.put("threadId", data.threadNumber);
 				}
 				if (data.name != null) {
 					parametersObject.put("name", data.name);
