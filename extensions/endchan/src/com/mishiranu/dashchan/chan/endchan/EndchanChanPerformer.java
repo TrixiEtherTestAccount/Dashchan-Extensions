@@ -326,6 +326,9 @@ public class EndchanChanPerformer extends ChanPerformer {
 				throw new ApiException(ipBlockBypassFailedMessage);
 			}
 		}
+		if("banned".equals(status)){
+			throw new ApiException(ApiException.SEND_ERROR_BANNED);
+		}
 		if (!"error".equals(status) && !"blank".equals(status)) {
 			CommonUtils.writeLog("Endchan send message", jsonObject.toString());
 			throw new InvalidResponseException();
