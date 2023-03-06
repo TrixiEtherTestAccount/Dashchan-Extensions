@@ -134,11 +134,12 @@ public class EndchanChanPerformer extends ChanPerformer {
 	}
 
 	private static final String REQUIRE_REPORT = "report";
+	private static final String REQUIRE_IP_BLOCK_BYPASS = "ip_block_bypass";
 
 	@Override
 	public ReadCaptchaResult onReadCaptcha(ReadCaptchaData data) throws HttpException, InvalidResponseException {
 		boolean needCaptcha = false;
-		if (REQUIRE_REPORT.equals(data.requirement)) {
+		if (REQUIRE_REPORT.equals(data.requirement) || REQUIRE_IP_BLOCK_BYPASS.equals(data.requirement)) {
 			needCaptcha = true;
 		} else {
 			EndchanChanLocator locator = EndchanChanLocator.get(this);
@@ -198,8 +199,14 @@ public class EndchanChanPerformer extends ChanPerformer {
 		entity.setContentType("application/json; charset=utf-8");
 		JSONObject jsonObject = new JSONObject();
 		JSONObject parametersObject = new JSONObject();
+		EndchanChanConfiguration configuration = EndchanChanConfiguration.get(this);
+		String ipBlockBypassKey = "ip_block_bypass_key";
+		String ipBlockBypassId = configuration.get(null, ipBlockBypassKey, null);
 		try {
 			try {
+				if (!StringUtils.isEmpty(ipBlockBypassId)){
+					jsonObject.put("bypassId", ipBlockBypassId);
+				}
 				jsonObject.put("parameters", parametersObject);
 				parametersObject.put("boardUri", data.boardName);
 				if (data.threadNumber != null) {
@@ -304,6 +311,21 @@ public class EndchanChanPerformer extends ChanPerformer {
 			CommonUtils.sleepMaxRealtime(SystemClock.elapsedRealtime(), 2000);
 			return new SendPostResult(threadNumber, postNumber);
 		}
+		if ("bypassable".equals(status)) {
+			JSONObject ipBlockBypassResult = bypassIpBlock(data);
+			if(ipBlockBypassResult != null) {
+				status = ipBlockBypassResult.optString("status");
+				if("ok".equals(status)){
+					String blockBypassId = ipBlockBypassResult.optString("data");
+					configuration.set(null, ipBlockBypassKey, blockBypassId);
+					return onSendPost(data); // If there was IP block, the captcha that has been used to send the post is still valid (if not expired), and we can retry to send the post without solving a new captcha
+				}
+			}
+			else {
+				String ipBlockBypassFailedMessage = configuration.getResources().getString(R.string.ip_block_bypass_failed);
+				throw new ApiException(ipBlockBypassFailedMessage);
+			}
+		}
 		if (!"error".equals(status) && !"blank".equals(status)) {
 			CommonUtils.writeLog("Endchan send message", jsonObject.toString());
 			throw new InvalidResponseException();
@@ -327,6 +349,44 @@ public class EndchanChanPerformer extends ChanPerformer {
 		}
 		CommonUtils.writeLog("Endchan send message", status, errorMessage);
 		throw new ApiException(status + ": " + errorMessage);
+	}
+
+	private JSONObject bypassIpBlock(HttpRequest.Preset preset) throws HttpException {
+		CaptchaData captchaData = requireUserCaptcha(REQUIRE_IP_BLOCK_BYPASS, null, null, false);
+		if(captchaData == null) return null;
+
+		String captchaInput = captchaData.get(CaptchaData.INPUT);
+		String captchaId = captchaData.get(CaptchaData.CHALLENGE);
+
+		if (StringUtils.isEmpty(captchaInput) || StringUtils.isEmpty(captchaId)) {
+			return null;
+		}
+		try {
+			JSONObject requestParameters = new JSONObject();
+			requestParameters.put("captcha", captchaInput);
+
+			JSONObject requestJsonObject = new JSONObject();
+			requestJsonObject.put("parameters", requestParameters);
+			requestJsonObject.put("captchaId", captchaId);
+
+			SimpleEntity requestEntity = new SimpleEntity();
+			requestEntity.setContentType("application/json; charset=utf-8");
+			requestEntity.setData(requestJsonObject.toString());
+
+			EndchanChanLocator locator = EndchanChanLocator.get(this);
+			Uri renewBypassApiUri = locator.buildPath(".api", "renewBypass");
+
+			HttpResponse response = new HttpRequest(renewBypassApiUri, preset)
+					.setPostMethod(requestEntity)
+					.setRedirectHandler(HttpRequest.RedirectHandler.STRICT)
+					.perform();
+
+			return new JSONObject(response.readString());
+		}
+		catch (JSONException jsonException){
+			CommonUtils.writeLog("Endchan", "ip block bypass json exception", jsonException.getMessage());
+			return null;
+		}
 	}
 
 	private static void fillDeleteReportPostings(JSONObject parametersObject, String boardName, String threadNumber,
