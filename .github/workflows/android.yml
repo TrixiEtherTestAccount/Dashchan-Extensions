@@ -39,7 +39,13 @@ jobs:
       run: chmod +x gradlew
       
     - name: Build dvach with Gradle
-      run: ./gradlew :Tasks:other:assembleRelease
+      run: ./gradlew :extensions:dvach:assembleRelease
+      
+    - name: Build fourchan with Gradle
+      run: ./gradlew :extensions:fourchan:assembleRelease
+      
+    - name: Build endchan with Gradle
+      run: ./gradlew :extensions:endchan:assembleRelease
 
       
     - name: Upload APK - Dvach
