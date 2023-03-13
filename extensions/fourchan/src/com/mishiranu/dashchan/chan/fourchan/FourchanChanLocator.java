@@ -14,6 +14,7 @@ public class FourchanChanLocator extends ChanLocator {
 	private static final String HOST_BOARDS = "boards.4chan.org";
 	private static final String HOST_BOARDS_SAFE = "boards.4channel.org";
 	private static final String HOST_SYS = "sys.4chan.org";
+	private static final String HOST_SYS_SAFE = "sys.4channel.org";
 	private static final String HOST_API = "a.4cdn.org";
 	private static final String HOST_IMAGES = "i.4cdn.org";
 	private static final String HOST_IMAGES_IS1 = "is.4chan.org";
@@ -33,7 +34,7 @@ public class FourchanChanLocator extends ChanLocator {
 		addSpecialChanHost(HOST_BOARDS);
 		addSpecialChanHost(HOST_BOARDS_SAFE);
 		addSpecialChanHost(HOST_SYS);
-		addSpecialChanHost("sys.4channel.org");
+		addSpecialChanHost(HOST_SYS_SAFE);
 		addSpecialChanHost(HOST_API);
 		addSpecialChanHost(HOST_IMAGES);
 		addSpecialChanHost(HOST_IMAGES_IS1);
@@ -128,8 +129,10 @@ public class FourchanChanLocator extends ChanLocator {
 		return buildPathWithSchemeHost(true, HOST_STATIC, "image", "flags", boardName, fileName);
 	}
 
-	public Uri createSysUri(String... segments) {
-		return buildPathWithSchemeHost(true, HOST_SYS, segments);
+	public Uri createSysUri(String boardName, String... segments) {
+		FourchanChanConfiguration configuration = FourchanChanConfiguration.get(this);
+		String host = !StringUtils.isEmpty(boardName) && configuration.isSafeForWork(boardName) ? HOST_SYS_SAFE : HOST_SYS;
+		return buildPathWithSchemeHost(true, host, segments);
 	}
 
 	public Uri createSearchApiUri(String... alternation) {
