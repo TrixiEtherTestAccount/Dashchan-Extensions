@@ -38,13 +38,25 @@ jobs:
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
       
-    - name: Build with Gradle
-      run: ./gradlew :extensions:dvach:assembleRelease
+    - name: Build dvach with Gradle
+      run: ./gradlew :extensions:assembleRelease
 
       
-    - name: Upload APK
+    - name: Upload APK - Dvach
       uses: actions/upload-artifact@v2
       with:
         name: DashchanDvach.apk
         path: extensions/dvach/build/outputs/apk/release/DashchanDvach-release.apk
+        
+    - name: Upload APK - Fourchan
+      uses: actions/upload-artifact@v2
+      with:
+        name: DashchanFourchan.apk
+        path: extensions/fourchan/build/outputs/apk/release/DashchanFourchan-release.apk
+        
+    - name: Upload APK - Endchan
+      uses: actions/upload-artifact@v2
+      with:
+        name: DashchanEndchan.apk
+        path: extensions/endchan/build/outputs/apk/release/DashchanEndchan-release.apk
       
