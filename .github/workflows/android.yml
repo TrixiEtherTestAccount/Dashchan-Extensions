@@ -39,7 +39,7 @@ jobs:
       run: chmod +x gradlew
       
     - name: Build dvach with Gradle
-      run: ./gradlew :extensions:assembleRelease
+      run: ./gradlew :Tasks:other:assembleRelease
 
       
     - name: Upload APK - Dvach
