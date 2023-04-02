@@ -55,6 +55,13 @@ jobs:
         repository: ${{ secrets.KEYSTORE_DASHCHAN_REPO }}
         token: ${{ secrets.KEYSTORE_ACCESS_TOKEN }}
         path: extensions/cirno/keystore
+        
+    - name: Checkout keystore - for sojak.party
+      uses: actions/checkout@v3
+      with:
+        repository: ${{ secrets.KEYSTORE_DASHCHAN_REPO }}
+        token: ${{ secrets.KEYSTORE_ACCESS_TOKEN }}
+        path: extensions/cirno/keystore
 
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
@@ -70,6 +77,9 @@ jobs:
 
     - name: Build cirno with Gradle
       run: ./gradlew :extensions:cirno:assembleRelease
+      
+    - name: Build sojak.party with Gradle
+      run: ./gradlew :extensions:sojakparty:assembleRelease
       
     - name: Upload APK - Dvach
       uses: actions/upload-artifact@v2
@@ -94,4 +104,10 @@ jobs:
       with:
         name: DashchanCirno.apk
         path: extensions/cirno/build/outputs/apk/release/DashchanCirno-release.apk
+        
+    - name: Upload APK - sojak.party
+      uses: actions/upload-artifact@v2
+      with:
+        name: DashchanSojakparty
+        path: extensions/sojakparty/build/outputs/apk/release/DashchanSojakparty-release.apk
       
