@@ -48,6 +48,13 @@ jobs:
         repository: ${{ secrets.KEYSTORE_DASHCHAN_REPO }}
         token: ${{ secrets.KEYSTORE_ACCESS_TOKEN }}
         path: extensions/endchan/keystore
+        
+    - name: Checkout keystore - for Cirno
+      uses: actions/checkout@v3
+      with:
+        repository: ${{ secrets.KEYSTORE_DASHCHAN_REPO }}
+        token: ${{ secrets.KEYSTORE_ACCESS_TOKEN }}
+        path: extensions/cirno/keystore
 
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
@@ -61,6 +68,8 @@ jobs:
     - name: Build endchan with Gradle
       run: ./gradlew :extensions:endchan:assembleRelease
 
+    - name: Build cirno with Gradle
+      run: ./geadlew :extensions:cirno:assembleRelease
       
     - name: Upload APK - Dvach
       uses: actions/upload-artifact@v2
@@ -79,4 +88,10 @@ jobs:
       with:
         name: DashchanEndchan.apk
         path: extensions/endchan/build/outputs/apk/release/DashchanEndchan-release.apk
+        
+    - name: Upload APK - Cirno
+      uses: actions/upload-artifact@v2
+      with:
+        name: DashchanCirno.apk
+        path: extensions/cirno/build/outputs/apk/release/DashchanCirno-release.apk
       
