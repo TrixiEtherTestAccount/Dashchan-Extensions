@@ -24,6 +24,15 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class CirnoChanPerformer extends WakabaChanPerformer {
+
+	public CirnoChanPerformer(){
+		try {
+			registerFirewallResolver(new CirnoFirewallResolver());
+		} catch (LinkageError e) {
+			e.printStackTrace();
+		}
+	}
+
 	@Override
 	protected List<Posts> parseThreads(String boardName, InputStream input)
 			throws IOException, ParseException, InvalidResponseException, RedirectException {
