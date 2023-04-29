@@ -858,7 +858,7 @@ public class DvachChanPerformer extends ChanPerformer {
 		Uri uri = locator.buildPath("/user/passlogin");
 		UrlEncodedEntity entity = new UrlEncodedEntity("passcode", captchaPassData);
 
-		HttpResponse response = null;
+		HttpResponse response;
 		try {
 			response = new HttpRequest(uri, preset).addCookie(buildCookies(null))
 					.setPostMethod(entity).setRedirectHandler(HttpRequest.RedirectHandler.NONE).perform();
@@ -868,7 +868,7 @@ public class DvachChanPerformer extends ChanPerformer {
 
 		String captchaPassCookie = "";
 		if (response != null) {
-			captchaPassCookie = response.getCookieValue("passcode_auth");
+			captchaPassCookie = response.getCookieValue(COOKIE_PASSCODE_AUTH);
 		}
 		if (StringUtils.isEmpty(captchaPassCookie)) {
 			throw new InvalidResponseException();
@@ -946,6 +946,10 @@ public class DvachChanPerformer extends ChanPerformer {
 				throw e;
 			}
 			exception = e;
+			boolean tooManyRequestsException = exception.getResponseCode() == 429;
+			if(tooManyRequestsException){
+				mayRelogin = false;
+			}
 		}
 
 		String apiResult = jsonObject != null ? CommonUtils.optJsonString(jsonObject, "result") : null;
