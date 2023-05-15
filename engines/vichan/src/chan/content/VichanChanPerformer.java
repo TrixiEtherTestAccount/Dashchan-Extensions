@@ -1,7 +1,6 @@
 package chan.content;
 
 import android.net.Uri;
-import android.util.Log;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -21,12 +20,11 @@ import chan.http.HttpRequest;
 import chan.http.HttpResponse;
 import chan.http.HttpValidator;
 import chan.http.MultipartEntity;
+import chan.http.UrlEncodedEntity;
 import chan.text.JsonSerial;
 import chan.text.ParseException;
 import chan.util.CommonUtils;
 import chan.util.StringUtils;
-
-import static chan.content.ChanConfiguration.CAPTCHA_TYPE_RECAPTCHA_2;
 
 public class VichanChanPerformer extends ChanPerformer {
 
@@ -203,8 +201,6 @@ public class VichanChanPerformer extends ChanPerformer {
         }
     }
 
-    private static final String CAPTCHA_DATA_KEY_TYPE = "captchaType";
-
     protected void parseAntispamFields(String text, MultipartEntity entity) throws ParseException {
     }
 
@@ -295,6 +291,80 @@ public class VichanChanPerformer extends ChanPerformer {
             if (errorType != 0) {
                 throw new ApiException(errorType);
             }
+            throw new ApiException(errorMessage);
+        }
+        throw new InvalidResponseException();
+    }
+
+    @Override
+    public SendDeletePostsResult onSendDeletePosts(SendDeletePostsData data) throws HttpException, ApiException,
+            InvalidResponseException {
+        VichanChanLocator locator = ChanLocator.get(this);
+        UrlEncodedEntity entity = new UrlEncodedEntity("delete", "1", "board", data.boardName,
+                "password", data.password, "json_response", "1");
+        for (String postNumber : data.postNumbers) {
+            entity.add("delete_" + postNumber, "1");
+        }
+        if (data.optionFilesOnly) {
+            entity.add("file", "on");
+        }
+        Uri uri = locator.buildPath("vichan", "post.php");
+        JSONObject jsonObject = null;
+        try {
+            jsonObject = new JSONObject(new HttpRequest(uri, data).setPostMethod(entity)
+                    .setRedirectHandler(HttpRequest.RedirectHandler.STRICT).perform().readString());
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        if (jsonObject == null) {
+            throw new InvalidResponseException();
+        }
+        if (jsonObject.optBoolean("success")) {
+            return null;
+        }
+        String errorMessage = jsonObject.optString("error");
+        if (errorMessage != null) {
+            int errorType = 0;
+            if (errorMessage.contains("Wrong password")) {
+                errorType = ApiException.DELETE_ERROR_PASSWORD;
+            } else if (errorMessage.contains("before deleting that")) {
+                errorType = ApiException.DELETE_ERROR_TOO_NEW;
+            }
+            if (errorType != 0) {
+                throw new ApiException(errorType);
+            }
+            CommonUtils.writeLog("Delete message", errorMessage);
+            throw new ApiException(errorMessage);
+        }
+        throw new InvalidResponseException();
+    }
+
+    @Override
+    public SendReportPostsResult onSendReportPosts(SendReportPostsData data) throws HttpException, ApiException,
+            InvalidResponseException {
+        VichanChanLocator locator = ChanLocator.get(this);
+        UrlEncodedEntity entity = new UrlEncodedEntity("report", "1", "board", data.boardName,
+                "reason", StringUtils.emptyIfNull(data.comment), "json_response", "1");
+        for (String postNumber : data.postNumbers) {
+            entity.add("delete_" + postNumber, "1");
+        }
+        Uri uri = locator.buildPath("vichan", "post.php");
+        JSONObject jsonObject = null;
+        try {
+            jsonObject = new JSONObject(new HttpRequest(uri, data).setPostMethod(entity)
+                    .setRedirectHandler(HttpRequest.RedirectHandler.STRICT).perform().readString());
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        if (jsonObject == null) {
+            throw new InvalidResponseException();
+        }
+        if (jsonObject.optBoolean("success")) {
+            return null;
+        }
+        String errorMessage = jsonObject.optString("error");
+        if (errorMessage != null) {
+            CommonUtils.writeLog("Report message", errorMessage);
             throw new ApiException(errorMessage);
         }
         throw new InvalidResponseException();

@@ -1,7 +1,5 @@
 package chan.content;
 
-import android.net.Uri;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Locale;
@@ -65,8 +63,8 @@ public class VichanModelMapper {
             throws IOException, ParseException {
 
         Post post = new Post();
-        String country = null;
-        String countryName = null;
+        //String country = null;
+        //String countryName = null;
         String tim = null;
         String filename = null;
         String ext = null;
@@ -146,14 +144,14 @@ public class VichanModelMapper {
                     post.setComment(comment);
                     break;
                 }
-                case "country": {
+                /*case "country": {
                     country = reader.nextString();
                     break;
                 }
                 case "country_name": {
                     countryName = reader.nextString();
                     break;
-                }
+                }*/
                 case "tim": {
                     tim = reader.nextString();
                     break;
@@ -237,6 +235,7 @@ public class VichanModelMapper {
                     thumbnailFile = "pdf.png";
                     break;
                 }
+                case ".webp":
                 case ".jpg": {
                     thumbnailFile = tim + ".png";
                     break;
