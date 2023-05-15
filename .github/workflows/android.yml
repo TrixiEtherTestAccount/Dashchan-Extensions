@@ -62,6 +62,13 @@ jobs:
         repository: ${{ secrets.KEYSTORE_DASHCHAN_REPO }}
         token: ${{ secrets.KEYSTORE_ACCESS_TOKEN }}
         path: extensions/sojakparty/keystore
+        
+    - name: Checkout keystore - for rf.dobrochan
+      uses: actions/checkout@v3
+      with:
+        repository: ${{ secrets.KEYSTORE_DASHCHAN_REPO }}
+        token: ${{ secrets.KEYSTORE_ACCESS_TOKEN }}
+        path: extensions/refugedobrochan/keystore
 
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
@@ -80,6 +87,9 @@ jobs:
       
     - name: Build sojak.party with Gradle
       run: ./gradlew :extensions:sojakparty:assembleRelease
+      
+    - name: Build rf.dobrochan with Gradle
+      run: ./gradlew :extensions:refugedobrochan:assembleRelease
       
     - name: Upload APK - Dvach
       uses: actions/upload-artifact@v2
@@ -110,4 +120,10 @@ jobs:
       with:
         name: DashchanSojakparty
         path: extensions/sojakparty/build/outputs/apk/release/DashchanSojakparty-release.apk
+        
+    - name: Upload APK - rf.dobrochan
+      uses: actions/upload-artifact@v2
+      with:
+        name: DashchanRefugeDobrochan
+        path: extensions/refugedobrochan/build/outputs/apk/release/DashchanRefugeDobrochan-release.apk
       
