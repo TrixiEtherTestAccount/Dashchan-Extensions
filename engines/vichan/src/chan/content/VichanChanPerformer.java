@@ -1,6 +1,7 @@
 package chan.content;
 
 import android.net.Uri;
+import android.util.Log;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -204,6 +205,9 @@ public class VichanChanPerformer extends ChanPerformer {
 
     private static final String CAPTCHA_DATA_KEY_TYPE = "captchaType";
 
+    protected void parseAntispamFields(String text, MultipartEntity entity) throws ParseException {
+    }
+
     @Override
     public SendPostResult onSendPost(SendPostData data) throws HttpException, ApiException, InvalidResponseException {
         MultipartEntity entity = new MultipartEntity();
@@ -230,9 +234,13 @@ public class VichanChanPerformer extends ChanPerformer {
         entity.add("json_response", "1");
 
         VichanChanLocator locator = ChanLocator.get(this);
-        Uri contentUri = data.threadNumber != null ? locator.createThreadUri(data.boardName, data.threadNumber)
-                : locator.createBoardUri(data.boardName, 0);
+        Uri contentUri = locator.createAntispamUri(data.boardName, data.threadNumber);
         String responseText = new HttpRequest(contentUri, data).perform().readString();
+        try {
+            parseAntispamFields(responseText, entity);
+        } catch (ParseException e) {
+            throw new InvalidResponseException();
+        }
 
         Uri uri = locator.buildPath("vichan","post.php");
         JSONObject jsonObject = null;
