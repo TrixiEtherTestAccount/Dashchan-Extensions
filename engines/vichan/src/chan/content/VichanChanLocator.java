@@ -7,11 +7,11 @@ import java.util.regex.Pattern;
 
 public class VichanChanLocator extends ChanLocator {
 
-    protected static String DEFAULT_SEGMENT_PRESET = "vichan";
+    protected static String DEFAULT_SEGMENT_PRESET = "";
 
-    private static final Pattern BOARD_PATH = Pattern.compile("/\\w+(?:/(?:(?:catalog|index|\\d+)\\.html)?)?");
-    private static final Pattern THREAD_PATH = Pattern.compile("/\\w+/{1,2}thread/(\\d+).*\\.html");
-    private static final Pattern ATTACHMENT_PATH = Pattern.compile("/\\w+/src/\\d+\\.\\w+");
+    protected static Pattern BOARD_PATH = Pattern.compile("/\\w+(?:/(?:(?:catalog|index|\\d+)\\.html)?)?");
+    protected static Pattern THREAD_PATH = Pattern.compile("/\\w+/{1,2}thread/(\\d+).*\\.html");
+    protected static Pattern ATTACHMENT_PATH = Pattern.compile("/\\w+/src/\\d+\\.\\w+");
 
     @Override
     public Uri createThreadUri(String boardName, String threadNumber) {
@@ -74,7 +74,11 @@ public class VichanChanLocator extends ChanLocator {
         if (uri != null) {
             List<String> segments = uri.getPathSegments();
             if (segments.size() > 0) {
-                return segments.get(0);
+                for (String segment : segments) {
+                    if (!segment.equals(DEFAULT_SEGMENT_PRESET)) {
+                        return segment;
+                    }
+                }
             }
         }
         return null;
