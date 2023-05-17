@@ -236,6 +236,7 @@ public class VichanModelMapper {
                     break;
                 }
                 case ".webp":
+                case ".jpeg":
                 case ".jpg": {
                     thumbnailFile = tim + ".png";
                     break;
