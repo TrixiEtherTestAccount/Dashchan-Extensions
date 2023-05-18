@@ -17,6 +17,24 @@ jobs:
   
     runs-on: ubuntu-latest
 
+    strategy:
+      matrix:
+        package:
+          - module: dvach
+            name: Dvach
+          - module: fourchan
+            name: Fourchan
+          - module: endchan
+            name: Endchan
+          - module: cirno
+            name: Cirno
+          - module: sojakparty
+            name: Sojakparty
+          - module: refugedobrochan
+            name: RefugeDobrochan
+          - module: archivedmoe
+            name: ArchivedMoe
+
     steps:
     - uses: actions/checkout@v3
       with:
@@ -27,119 +45,23 @@ jobs:
         java-version: '11'
         distribution: 'temurin'
         cache: gradle
-        
-    - name: Checkout keystore - for Dvach
-      uses: actions/checkout@v3
-      with:
-        repository: ${{ secrets.KEYSTORE_DASHCHAN_REPO }}
-        token: ${{ secrets.KEYSTORE_ACCESS_TOKEN }}
-        path: extensions/dvach/keystore
-        
-    - name: Checkout keystore - for Fourchan
-      uses: actions/checkout@v3
-      with:
-        repository: ${{ secrets.KEYSTORE_DASHCHAN_REPO }}
-        token: ${{ secrets.KEYSTORE_ACCESS_TOKEN }}
-        path: extensions/fourchan/keystore
-        
-    - name: Checkout keystore - for Endchan
-      uses: actions/checkout@v3
-      with:
-        repository: ${{ secrets.KEYSTORE_DASHCHAN_REPO }}
-        token: ${{ secrets.KEYSTORE_ACCESS_TOKEN }}
-        path: extensions/endchan/keystore
-        
-    - name: Checkout keystore - for Cirno
-      uses: actions/checkout@v3
-      with:
-        repository: ${{ secrets.KEYSTORE_DASHCHAN_REPO }}
-        token: ${{ secrets.KEYSTORE_ACCESS_TOKEN }}
-        path: extensions/cirno/keystore
-        
-    - name: Checkout keystore - for sojak.party
-      uses: actions/checkout@v3
-      with:
-        repository: ${{ secrets.KEYSTORE_DASHCHAN_REPO }}
-        token: ${{ secrets.KEYSTORE_ACCESS_TOKEN }}
-        path: extensions/sojakparty/keystore
-        
-    - name: Checkout keystore - for rf.dobrochan
-      uses: actions/checkout@v3
-      with:
-        repository: ${{ secrets.KEYSTORE_DASHCHAN_REPO }}
-        token: ${{ secrets.KEYSTORE_ACCESS_TOKEN }}
-        path: extensions/refugedobrochan/keystore
 
-    - name: Checkout keystore - for archived.moe
+    - name: Checkout kyestore - for ${{ matrix.package.name }}
       uses: actions/checkout@v3
       with:
         repository: ${{ secrets.KEYSTORE_DASHCHAN_REPO }}
         token: ${{ secrets.KEYSTORE_ACCESS_TOKEN }}
-        path: extensions/archivedmoe/keystore
+        path: extensions/${{ matrix.package.module }}/keystore
 
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
-      
-    - name: Build dvach with Gradle
-      run: ./gradlew :extensions:dvach:assembleRelease
-      
-    - name: Build fourchan with Gradle
-      run: ./gradlew :extensions:fourchan:assembleRelease
-      
-    - name: Build endchan with Gradle
-      run: ./gradlew :extensions:endchan:assembleRelease
 
-    - name: Build cirno with Gradle
-      run: ./gradlew :extensions:cirno:assembleRelease
-      
-    - name: Build sojak.party with Gradle
-      run: ./gradlew :extensions:sojakparty:assembleRelease
-      
-    - name: Build rf.dobrochan with Gradle
-      run: ./gradlew :extensions:refugedobrochan:assembleRelease
+    - name: Build ${{ matrix.package.name }} with Gradle
+      run: ./gradlew :extensions:${{ matrix.package.module }}:assembleRelease
 
-    - name: Build archived.moe with Gradle
-      run: ./gradlew :extensions:archivedmoe:assembleRelease
-      
-    - name: Upload APK - Dvach
+    - name: Upload APK - ${{ matrix.package.name }}
       uses: actions/upload-artifact@v2
       with:
-        name: DashchanDvach.apk
-        path: extensions/dvach/build/outputs/apk/release/DashchanDvach-release.apk
-        
-    - name: Upload APK - Fourchan
-      uses: actions/upload-artifact@v2
-      with:
-        name: DashchanFourchan.apk
-        path: extensions/fourchan/build/outputs/apk/release/DashchanFourchan-release.apk
-        
-    - name: Upload APK - Endchan
-      uses: actions/upload-artifact@v2
-      with:
-        name: DashchanEndchan.apk
-        path: extensions/endchan/build/outputs/apk/release/DashchanEndchan-release.apk
-        
-    - name: Upload APK - Cirno
-      uses: actions/upload-artifact@v2
-      with:
-        name: DashchanCirno.apk
-        path: extensions/cirno/build/outputs/apk/release/DashchanCirno-release.apk
-        
-    - name: Upload APK - sojak.party
-      uses: actions/upload-artifact@v2
-      with:
-        name: DashchanSojakparty
-        path: extensions/sojakparty/build/outputs/apk/release/DashchanSojakparty-release.apk
-        
-    - name: Upload APK - rf.dobrochan
-      uses: actions/upload-artifact@v2
-      with:
-        name: DashchanRefugeDobrochan
-        path: extensions/refugedobrochan/build/outputs/apk/release/DashchanRefugeDobrochan-release.apk
-
-    - name: Upload APK - archived.moe
-      uses: actions/upload-artifact@v2
-      with:
-        name: DashchanArchivedMoe
-        path: extensions/archivedmoe/build/outputs/apk/release/DashchanArchivedMoe-release.apk
+        name: Dashchan${{ matrix.package.name }}.apk
+        path: extensions/${{ matrix.package.module }}/build/outputs/apk/release/Dashchan${{ matrix.package.name }}-release.apk
       
