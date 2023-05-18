@@ -3,7 +3,7 @@ apply plugin: 'chan-extension'
 chan {
     nameUpper 'ArchivedMoe'
     packageName 'com.trixiether.dashchan.chan.archivedmoe'
-    versionName '1.0'
+    versionName '1.1'
     apiVersion 1
     hosts 'archived.moe'
 }
