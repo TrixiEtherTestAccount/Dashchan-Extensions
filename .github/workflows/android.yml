@@ -34,6 +34,10 @@ jobs:
             name: RefugeDobrochan
           - module: archivedmoe
             name: ArchivedMoe
+          - module: archiverbt
+            name: ArchiveRbt
+          - module: desustorage
+            name: Desustorage
 
     steps:
     - uses: actions/checkout@v3
