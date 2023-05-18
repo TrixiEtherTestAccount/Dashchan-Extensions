@@ -70,6 +70,13 @@ jobs:
         token: ${{ secrets.KEYSTORE_ACCESS_TOKEN }}
         path: extensions/refugedobrochan/keystore
 
+    - name: Checkout keystore - for archived.moe
+      uses: actions/checkout@v3
+      with:
+        repository: ${{ secrets.KEYSTORE_DASHCHAN_REPO }}
+        token: ${{ secrets.KEYSTORE_ACCESS_TOKEN }}
+        path: extensions/archivedmoe/keystore
+
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
       
@@ -90,6 +97,9 @@ jobs:
       
     - name: Build rf.dobrochan with Gradle
       run: ./gradlew :extensions:refugedobrochan:assembleRelease
+
+    - name: Build archived.moe with Gradle
+      run: ./gradlew :extensions:archivedmoe:assembleRelease
       
     - name: Upload APK - Dvach
       uses: actions/upload-artifact@v2
@@ -126,4 +136,10 @@ jobs:
       with:
         name: DashchanRefugeDobrochan
         path: extensions/refugedobrochan/build/outputs/apk/release/DashchanRefugeDobrochan-release.apk
+
+    - name: Upload APK - archived.moe
+      uses: actions/upload-artifact@v2
+      with:
+        name: DashchanArchivedMoe
+        path: extensions/archivedmoe/build/outputs/apk/release/DashchanArchivedMoe-release.apk
       
