@@ -31,7 +31,7 @@ jobs:
           - module: sojakparty
             name: Sojakparty
           - module: refugedobrochan
-            name: RegugeDobrochan
+            name: RefugeDobrochan
           - module: archivedmoe
             name: ArchivedMoe
 
@@ -46,7 +46,7 @@ jobs:
         distribution: 'temurin'
         cache: gradle
 
-    - name: Checkout kyestore - for ${{ matrix.pachage.name }}
+    - name: Checkout kyestore - for ${{ matrix.package.name }}
       uses: actions/checkout@v3
       with:
         repository: ${{ secrets.KEYSTORE_DASHCHAN_REPO }}
