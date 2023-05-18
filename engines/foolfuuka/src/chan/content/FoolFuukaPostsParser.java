@@ -174,6 +174,7 @@ public class FoolFuukaPostsParser {
 				return false;
 			})
 			.equals("div", "class", "text")
+			.equals("div", "class", "text shift-jis")
 			.content((instance, holder, text) -> {
 				if (text != null) {
 					text = text.trim();
