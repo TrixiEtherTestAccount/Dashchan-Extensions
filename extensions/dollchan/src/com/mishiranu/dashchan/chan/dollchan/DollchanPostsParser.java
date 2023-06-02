@@ -93,6 +93,7 @@ public class DollchanPostsParser {
 					if (holder.threads != null) {
 						holder.closeThread();
 						holder.thread = new Posts();
+						holder.attachments = null;
 					}
 				}
 			}
