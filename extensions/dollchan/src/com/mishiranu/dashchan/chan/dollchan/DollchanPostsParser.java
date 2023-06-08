@@ -33,7 +33,7 @@ public class DollchanPostsParser {
 	private static final SimpleDateFormat DATE_FORMAT;
 
 	static {
-		DATE_FORMAT = new SimpleDateFormat("dd.MM.yy EEE hh:mm:ss", Locale.UK);
+		DATE_FORMAT = new SimpleDateFormat("dd.MM.yy EEE HH:mm:ss", Locale.UK);
 		DATE_FORMAT.setTimeZone(TimeZone.getTimeZone("GMT+3"));
 	}
 
