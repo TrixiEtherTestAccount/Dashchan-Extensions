@@ -33,7 +33,7 @@ public class DollchanPostsParser {
 	private static final SimpleDateFormat DATE_FORMAT;
 
 	static {
-		DATE_FORMAT = new SimpleDateFormat("dd.MM.yy EEE hh:mm:ss", Locale.UK);
+		DATE_FORMAT = new SimpleDateFormat("dd.MM.yy EEE HH:mm:ss", Locale.UK);
 		DATE_FORMAT.setTimeZone(TimeZone.getTimeZone("GMT+3"));
 	}
 
@@ -48,6 +48,7 @@ public class DollchanPostsParser {
 	protected FileAttachment attachment;
 	protected ArrayList<Posts> threads;
 	protected final ArrayList<Post> posts = new ArrayList<>();
+	protected int maxNumberOfPages = 0;
 
 	protected boolean headerHandling = false;
 	protected boolean originalNameFromLink;
@@ -249,16 +250,17 @@ public class DollchanPostsParser {
 		})
 		.equals("div", "class", "logo")
 		.content((instance, holder, text) -> holder.storeBoardTitle(StringUtils.clearHtml(text).trim()))
-		.equals("table", "border", "1")
+		.ends("a", "href", ".html")
 		.content((instance, holder, text) -> {
-			text = StringUtils.clearHtml(text);
-			int index1 = text.lastIndexOf('[');
-			int index2 = text.lastIndexOf(']');
-			if (index1 >= 0 && index2 > index1) {
-				text = text.substring(index1 + 1, index2);
+			if (text.matches("\\\\d+"))
+			{
 				try {
 					int pagesCount = Integer.parseInt(text) + 1;
-					holder.configuration.storePagesCount(holder.boardName, pagesCount);
+					if (holder.maxNumberOfPages < pagesCount)
+					{
+						holder.maxNumberOfPages = pagesCount;
+						holder.configuration.storePagesCount(holder.boardName, pagesCount);
+					}
 				} catch (NumberFormatException e) {
 					// Ignore exception
 				}

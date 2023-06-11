@@ -59,7 +59,7 @@ public class DollchanChanLocator extends WakabaChanLocator {
 
 	@Override
 	public Uri createBoardUri(String boardName, int pageNumber) {
-		return pageNumber > 0 ? buildPath(boardName, (pageNumber + 1) + ".html") : buildPath(boardName, "");
+		return pageNumber > 0 ? buildPath(boardName, pageNumber + ".html") : buildPath(boardName, "");
 	}
 
 	@Override
