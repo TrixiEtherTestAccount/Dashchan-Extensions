@@ -292,6 +292,31 @@ public class DollchanPostsParser {
 			}
 			return false;
 		})
+		.ends("img", "src", "/icons/sticky.png")
+		.open((instance, holder, tagName, attributes) -> {
+			if (holder.post != null) {
+				holder.post.setSticky(true);
+			}
+			return false;
+		})
+		.ends("img", "src", "/icons/endless.png")
+		.open((instance, holder, tagName, attributes) -> {
+			if (holder.post != null) {
+				holder.post.setCyclical(true);
+			}
+			return false;
+		})
+		.equals("span", "class", "like-counter")
+		.content((instance, holder, text) -> {
+			if (holder.post != null) {
+				try {
+					int c = Integer.parseInt(text);
+					holder.post.setVote(c, 0);
+				} catch (NumberFormatException e) {
+					// Ignore exception
+				}
+			}
+		})
 		.prepare();
 
 
