@@ -41,6 +41,8 @@ jobs:
             name: Desustorage
           - module: dollchan
             name: Dollchan
+          - module: warosu
+            name: Warosu
 
     steps:
     - uses: actions/checkout@v3
