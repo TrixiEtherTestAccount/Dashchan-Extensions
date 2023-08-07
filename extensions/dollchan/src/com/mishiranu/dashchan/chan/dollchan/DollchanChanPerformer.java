@@ -5,11 +5,15 @@ import android.graphics.Color;
 import android.net.Uri;
 import android.os.SystemClock;
 import android.util.Base64;
+import android.util.Pair;
+
 import chan.content.ApiException;
+import chan.content.ChanConfiguration;
 import chan.content.ChanLocator;
 import chan.content.ChanPerformer;
 import chan.content.InvalidResponseException;
 import chan.content.RedirectException;
+import chan.content.WakabaChanLocator;
 import chan.content.WakabaChanPerformer;
 import chan.content.model.Board;
 import chan.content.model.BoardCategory;
@@ -21,6 +25,7 @@ import chan.http.HttpRequest;
 import chan.http.HttpResponse;
 import chan.http.MultipartEntity;
 import chan.http.SimpleEntity;
+import chan.http.UrlEncodedEntity;
 import chan.util.CommonUtils;
 import chan.util.StringUtils;
 import java.io.IOException;
@@ -44,6 +49,23 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 public class DollchanChanPerformer extends WakabaChanPerformer {
+
+	private static final String COOKIE_AUTHORIZATION = "AUTHORIZATION";
+
+	private String userPassword;
+
+	private boolean checkPassword(String password) {
+		if (password == null)
+		{
+			return false;
+		}
+		if (userPassword == null)
+		{
+			return false;
+		}
+		return userPassword.equals(password);
+	}
+
 	@Override
 	protected List<Posts> parseThreads(String boardName, InputStream input) throws IOException, chan.text.ParseException {
 		return new DollchanPostsParser(this, boardName).convertThreads(input);
@@ -59,7 +81,57 @@ public class DollchanChanPerformer extends WakabaChanPerformer {
 		return new ReadBoardsResult(new BoardCategory(null, new Board[] {
 			new Board("ukr", "Україна"),
 			new Board("de", "Scripts"),
-			new Board("btb", "Bytebeat")}));
+			new Board("btb", "Bytebeat"),
+			new Board("test", "Testing")}));
+	}
+
+	@Override
+	public CheckAuthorizationResult onCheckAuthorization(CheckAuthorizationData data)
+			throws HttpException {
+		String boardName = data.authorizationData[0];
+		String password = data.authorizationData[1];
+		return new CheckAuthorizationResult(authorizeUser(data, boardName, password) != null);
+	}
+
+	private String authorizeUserFromConfiguration(HttpRequest.Preset preset)
+			throws HttpException {
+		String[] authorizationData = DollchanChanConfiguration.get(this).getUserAuthorizationData();
+		String boardName = authorizationData[0];
+		String password = authorizationData[1];
+		if (!checkPassword(password)) {
+			if (password != null) {
+				return authorizeUser(preset, boardName, password);
+			} else {
+				userPassword = null;
+			}
+		}
+		return userPassword;
+	}
+
+	private String authorizeUser(HttpRequest.Preset preset, String boardName, String password)
+			throws HttpException {
+		userPassword = null;
+		DollchanChanLocator locator = ChanLocator.get(this);
+
+		Uri uri = locator.buildPath(boardName, "imgboard.php?manage");
+		HttpResponse response = new HttpRequest(uri, preset).setPostMethod(
+			new UrlEncodedEntity("managepassword", password)).perform();
+
+		DollchanChanConfiguration configuration = DollchanChanConfiguration.get(this);
+
+		configuration.storeCookie(COOKIE_AUTHORIZATION,
+			response.getCookieValue("PHPSESSID"), "Authorization");
+
+		return updateAuthorizationData(response.readString(), password);
+	}
+
+	private String updateAuthorizationData(String response, String password) {
+		if (response != null && response.contains("?manage&logout\">Log Out<")) {
+			this.userPassword = password;
+			return password;
+		}
+		userPassword = null;
+		return null;
 	}
 
 	private static final Pattern PATTERN_POST_ERROR = Pattern.compile("<div class=\"reply\".*?>(.*?)</div>");
@@ -91,11 +163,6 @@ public class DollchanChanPerformer extends WakabaChanPerformer {
 		return new ReadCaptchaResult(CaptchaState.CAPTCHA, captchaData).setImage(image);
 	}
 
-	private String trimPassword(String password) {
-		// Max password length: 8
-		return password != null && password.length() > 8 ? password.substring(0, 8) : password;
-	}
-
 	private CookieBuilder buildCookies(CaptchaData data) {
 		CookieBuilder builder = new CookieBuilder();
 		if (data != null)
@@ -104,7 +171,6 @@ public class DollchanChanPerformer extends WakabaChanPerformer {
 		}
 		return builder;
 	}
-
 
 	@Override
 	public SendPostResult onSendPost(SendPostData data) throws HttpException, ApiException, InvalidResponseException {
@@ -182,67 +248,122 @@ public class DollchanChanPerformer extends WakabaChanPerformer {
 		return null;
 	}
 
-	private static void fillDeleteReportPostings(JSONObject parametersObject, String boardName, String threadNumber,
-			Collection<String> postNumbers) throws JSONException {
-		JSONArray jsonArray = new JSONArray();
-		for (String postNumber : postNumbers) {
-			JSONObject postObject = new JSONObject();
-			postObject.put("board", boardName);
-			postObject.put("thread", threadNumber);
-			if (!postNumber.equals(threadNumber)) {
-				postObject.put("post", postNumber);
-			}
-			jsonArray.put(postObject);
+	protected static Pattern POSTER_IP = Pattern.compile("<input type=\"hidden\" name=\"bans\" value=\"(.*?)\">");
+	protected static Pattern REASON_PARSER = Pattern.compile("([0-9]+) (.*+)");
+
+	private CookieBuilder buildCookiesWithAuthorizationPass() {
+		CookieBuilder builder = new CookieBuilder();
+		String auth = DollchanChanConfiguration.get(this).getCookie(COOKIE_AUTHORIZATION);
+		if (auth != null)
+		{
+			builder.append("PHPSESSID", auth);
 		}
-		parametersObject.put("postings", jsonArray);
+		return builder;
 	}
 
 	@Override
-	public SendDeletePostsResult onSendDeletePosts(SendDeletePostsData data) throws HttpException, ApiException,
-			InvalidResponseException {
-		JSONObject jsonObject = new JSONObject();
-		JSONObject parametersObject = new JSONObject();
-		try {
-			jsonObject.put("parameters", parametersObject);
-			parametersObject.put("password", trimPassword(data.password));
-			parametersObject.put("deleteMedia", true);
-			if (data.optionFilesOnly) {
-				parametersObject.put("deleteUploads", true);
-			}
-			fillDeleteReportPostings(parametersObject, data.boardName, data.threadNumber, data.postNumbers);
-		} catch (JSONException e) {
-			throw new RuntimeException(e);
+	public SendReportPostsResult onSendReportPosts(SendReportPostsData data)
+			throws HttpException, ApiException
+	{
+		if (authorizeUserFromConfiguration(data) == null)
+		{
+			throw new ApiException(ApiException.SEND_ERROR_NO_ACCESS);
 		}
-		SimpleEntity entity = new SimpleEntity();
-		entity.setContentType("application/json; charset=utf-8");
-		entity.setData(jsonObject.toString());
-		DollchanChanLocator locator = DollchanChanLocator.get(this);
-		Uri uri = locator.buildPath(".api", "deleteContent");
-		try {
-			jsonObject = new JSONObject(new HttpRequest(uri, data).setPostMethod(entity)
-					.setRedirectHandler(HttpRequest.RedirectHandler.STRICT).perform().readString());
-		} catch (JSONException e) {
-			throw new InvalidResponseException(e);
-		}
-		if ("error".equals(CommonUtils.optJsonString(jsonObject, "status"))) {
-			String errorMessage = CommonUtils.optJsonString(jsonObject, "data");
-			if (errorMessage != null) {
-				if (errorMessage.contains("Invalid account")) {
+
+		if (DollchanChanConfiguration.REPORDING_DELETE.equals(data.type))
+		{
+			for (String postNumber : data.postNumbers) {
+				DollchanChanLocator locator = DollchanChanLocator.get(this);
+
+				Uri uri = locator.buildPath(data.boardName,
+					"imgboard.php?manage&delete=" + postNumber);
+				String response = new HttpRequest(uri, data).
+					addCookie(buildCookiesWithAuthorizationPass()).
+						perform().readString();
+				if (response.contains("Enter an administrator or moderator password")) {
 					throw new ApiException(ApiException.DELETE_ERROR_PASSWORD);
 				}
-				CommonUtils.writeLog("Dollchan delete message", errorMessage);
-				throw new ApiException(errorMessage);
 			}
+
+			return new SendReportPostsResult();
 		}
-		try {
-			jsonObject = jsonObject.getJSONObject("data");
-		} catch (JSONException e) {
-			throw new InvalidResponseException(e);
+
+		if (DollchanChanConfiguration.REPORDING_BAN.equals(data.type))
+		{
+			for (String postNumber : data.postNumbers) {
+				DollchanChanLocator locator = DollchanChanLocator.get(this);
+				Uri uri = locator.buildPath(data.boardName,
+					"imgboard.php?manage=&moderate=" + postNumber);
+				String response = new HttpRequest(uri, data).
+					addCookie(buildCookiesWithAuthorizationPass()).
+						perform().readString();
+
+				Matcher m = POSTER_IP.matcher(response);
+				if (!m.find())
+				{
+					throw new ApiException(ApiException.DELETE_ERROR_NOT_FOUND);
+				}
+
+				String ip = m.group(1);
+
+				uri = locator.buildPath(data.boardName,
+						"imgboard.php?manage&bans");
+
+				Matcher reason = REASON_PARSER.matcher(data.comment);
+				if (!reason.find())
+				{
+					throw new ApiException("Comment must be: <number of days> <reason>");
+				}
+
+				int days;
+
+				try
+				{
+					days = Integer.parseInt(reason.group(1));
+				}
+				catch (NumberFormatException e)
+				{
+					throw new ApiException("Comment must be: <number of days> <reason>");
+				}
+
+				MultipartEntity entity = new MultipartEntity(
+					"ip", ip,
+					"expire", Integer.toString(days * 86400),
+					"reason", reason.group(2)
+				);
+
+				response = new HttpRequest(uri, data).
+					addCookie(buildCookiesWithAuthorizationPass()).setPostMethod(entity).
+						perform().readString();
+
+				if (response.contains("Enter an administrator or moderator password")) {
+					throw new ApiException(ApiException.DELETE_ERROR_PASSWORD);
+				}
+			}
+
+			return new SendReportPostsResult();
 		}
-		if (jsonObject.optInt("removedThreads") + jsonObject.optInt("removedPosts") > 0) {
-			return new SendDeletePostsResult();
-		} else {
+
+		throw new ApiException(ApiException.SEND_ERROR_NO_ACCESS);
+	}
+
+	@Override
+	public SendDeletePostsResult onSendDeletePosts(SendDeletePostsData data) throws HttpException, ApiException {
+		UrlEncodedEntity entity = new UrlEncodedEntity(
+			"password", data.password
+		);
+
+		for (String postNumber : data.postNumbers) {
+			entity.add("delete", postNumber);
+		}
+
+		DollchanChanLocator locator = DollchanChanLocator.get(this);
+		Uri uri = locator.buildPath(data.boardName, "imgboard.php?delete");
+		String response = new HttpRequest(uri, data).setPostMethod(entity)
+			.setRedirectHandler(HttpRequest.RedirectHandler.STRICT).perform().readString();
+		if (response.contains("Invalid password")) {
 			throw new ApiException(ApiException.DELETE_ERROR_PASSWORD);
 		}
+		return new SendDeletePostsResult();
 	}
 }
