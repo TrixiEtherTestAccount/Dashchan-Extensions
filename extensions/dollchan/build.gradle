@@ -1,7 +1,7 @@
 apply plugin: 'chan-extension'
 
 chan {
-	versionName '1.3'
+	versionName '1.4'
 	apiVersion 1
 	hosts 'dollchan.net'
 }

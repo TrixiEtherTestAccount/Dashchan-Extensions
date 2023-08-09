@@ -8,6 +8,8 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.util.List;
+
 public class DollchanChanConfiguration extends ChanConfiguration {
 	private static final String KEY_NAMES_ENABLED = "names_enabled";
 	private static final String KEY_FLAGS_ENABLED = "flags_enabled";
@@ -15,9 +17,13 @@ public class DollchanChanConfiguration extends ChanConfiguration {
 	private static final String KEY_CODE_ENABLED = "code_enabled";
 	private static final String CAPTCHA_TYPE = "dollchan";
 
+	public static final String REPORDING_DELETE = "delete";
+	public static final String REPORDING_BAN = "ban";
+
 	public DollchanChanConfiguration() {
 		setDefaultName("Anonymous");
 		addCaptchaType(CAPTCHA_TYPE);
+		request(OPTION_ALLOW_USER_AUTHORIZATION);
 	}
 
 	@Override
@@ -25,7 +31,7 @@ public class DollchanChanConfiguration extends ChanConfiguration {
 		Board board = new Board();
 		board.allowCatalog = true;
 		board.allowPosting = true;
-		board.allowDeleting = get(boardName, KEY_DELETE_ENABLED, false) || boardName == null;
+		board.allowDeleting = true;
 		board.allowReporting = true;
 		return board;
 	}
@@ -42,6 +48,26 @@ public class DollchanChanConfiguration extends ChanConfiguration {
 		}
 
 		return null;
+	}
+
+	@Override
+	public Reporting obtainReportingConfiguration(String boardName) {
+		Reporting reporting = new Reporting();
+		reporting.comment = true;
+		reporting.multiplePosts = true;
+		reporting.types.add(new Pair<>(REPORDING_DELETE, "Delete Post [MOD]"));
+		reporting.types.add(new Pair<>(REPORDING_BAN, "Ban User [MOD]"));
+		return reporting;
+	}
+
+	@Override
+	public Authorization obtainUserAuthorizationConfiguration() {
+		Authorization authorization = new Authorization();
+		authorization.fieldsCount = 2;
+		authorization.hints = new String[2];
+		authorization.hints[0] = "Board (ukr, de, etc)";
+		authorization.hints[1] = "Password";
+		return authorization;
 	}
 
 	@Override
