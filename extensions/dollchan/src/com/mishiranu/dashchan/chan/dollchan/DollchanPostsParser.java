@@ -306,17 +306,6 @@ public class DollchanPostsParser {
 			}
 			return false;
 		})
-		.equals("span", "class", "like-counter")
-		.content((instance, holder, text) -> {
-			if (holder.post != null) {
-				try {
-					int c = Integer.parseInt(text);
-					holder.post.setVote(c, 0);
-				} catch (NumberFormatException e) {
-					// Ignore exception
-				}
-			}
-		})
 		.prepare();
 
 
