@@ -134,7 +134,7 @@ public class DollchanPostsParser {
 		})
 		.content((instance, holder, text) -> holder.attachment
 				.setOriginalName(StringUtils.clearHtml(text).trim()))
-		.equals("img", "class", "thumb")
+		.starts("img", "class", "thumb")
 		.open((instance, holder, tagName, attributes) -> {
 			String src = attributes.get("src");
 			if (src != null) {
@@ -153,7 +153,7 @@ public class DollchanPostsParser {
 			holder.attachment = null;
 			return false;
 		})
-		.equals("video", "class", "thumb")
+		.starts("video", "class", "thumb")
 		.open((instance, holder, tagName, attributes) -> {
 			if (holder.attachments == null) {
 				holder.attachments = new ArrayList<>();
