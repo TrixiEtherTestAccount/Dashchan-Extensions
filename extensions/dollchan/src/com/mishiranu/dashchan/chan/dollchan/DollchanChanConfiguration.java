@@ -19,6 +19,7 @@ public class DollchanChanConfiguration extends ChanConfiguration {
 
 	public static final String REPORDING_DELETE = "delete";
 	public static final String REPORDING_BAN = "ban";
+	public static final String REPORDING_BAN_DELETE_ALL = "ban_delete_all";
 
 	public DollchanChanConfiguration() {
 		setDefaultName("Anonymous");
@@ -57,6 +58,7 @@ public class DollchanChanConfiguration extends ChanConfiguration {
 		reporting.multiplePosts = true;
 		reporting.types.add(new Pair<>(REPORDING_DELETE, "Delete Post [MOD]"));
 		reporting.types.add(new Pair<>(REPORDING_BAN, "Ban User [MOD]"));
+		reporting.types.add(new Pair<>(REPORDING_BAN_DELETE_ALL, "Ban & Delete All [MOD]"));
 		return reporting;
 	}
 

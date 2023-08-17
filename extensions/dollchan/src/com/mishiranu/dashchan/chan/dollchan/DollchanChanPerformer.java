@@ -344,6 +344,69 @@ public class DollchanChanPerformer extends WakabaChanPerformer {
 			return new SendReportPostsResult();
 		}
 
+		if (DollchanChanConfiguration.REPORDING_BAN_DELETE_ALL.equals(data.type))
+		{
+			for (String postNumber : data.postNumbers) {
+				DollchanChanLocator locator = DollchanChanLocator.get(this);
+				Uri uri = locator.buildPath(data.boardName,
+						"imgboard.php?manage=&moderate=" + postNumber);
+				String response = new HttpRequest(uri, data).
+						addCookie(buildCookiesWithAuthorizationPass()).
+						perform().readString();
+
+				Matcher m = POSTER_IP.matcher(response);
+				if (!m.find())
+				{
+					throw new ApiException(ApiException.DELETE_ERROR_NOT_FOUND);
+				}
+
+				String ip = m.group(1);
+
+				Matcher reason = REASON_PARSER.matcher(data.comment);
+				if (!reason.find())
+				{
+					throw new ApiException("Comment must be: <number of days> <reason>");
+				}
+
+				int days;
+
+				try
+				{
+					days = Integer.parseInt(reason.group(1));
+				}
+				catch (NumberFormatException e)
+				{
+					throw new ApiException("Comment must be: <number of days> <reason>");
+				}
+
+				MultipartEntity entity = new MultipartEntity(
+					"ip", ip,
+					"expire", Integer.toString(days * 86400),
+					"reason", reason.group(2)
+				);
+
+				response = new HttpRequest(
+						locator.buildPath(data.boardName, "imgboard.php?manage&bans"),
+					data).addCookie(buildCookiesWithAuthorizationPass()).setPostMethod(entity).
+					perform().readString();
+
+				if (response.contains("Enter an administrator or moderator password")) {
+					throw new ApiException(ApiException.DELETE_ERROR_PASSWORD);
+				}
+
+				response = new HttpRequest(
+						locator.buildPath(data.boardName, "imgboard.php?manage&delall=" + ip),
+					data).addCookie(buildCookiesWithAuthorizationPass()).
+					perform().readString();
+
+				if (response.contains("Enter an administrator or moderator password")) {
+					throw new ApiException(ApiException.DELETE_ERROR_PASSWORD);
+				}
+			}
+
+			return new SendReportPostsResult();
+		}
+
 		throw new ApiException(ApiException.SEND_ERROR_NO_ACCESS);
 	}
 
