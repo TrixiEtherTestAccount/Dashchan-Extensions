@@ -65,10 +65,11 @@ public class DollchanChanConfiguration extends ChanConfiguration {
 	@Override
 	public Authorization obtainUserAuthorizationConfiguration() {
 		Authorization authorization = new Authorization();
-		authorization.fieldsCount = 2;
-		authorization.hints = new String[2];
+		authorization.fieldsCount = 3;
+		authorization.hints = new String[3];
 		authorization.hints[0] = "Board (ukr, de, etc)";
-		authorization.hints[1] = "Password";
+		authorization.hints[1] = "Passcode, or";
+		authorization.hints[2] = "Password";
 		return authorization;
 	}
 
