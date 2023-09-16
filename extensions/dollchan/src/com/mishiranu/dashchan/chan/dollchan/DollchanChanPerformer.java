@@ -22,6 +22,7 @@ import chan.util.CommonUtils;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -58,13 +59,43 @@ public class DollchanChanPerformer extends WakabaChanPerformer {
 		return new DollchanPostsParser(this, boardName).convertPosts(input);
 	}
 
+	private static final Pattern PATTERN_BOARD_LIST = Pattern.compile("<li><a href=\"https://dollchan.net/([a-z0-9]+)/\">/([a-z0-9]+)</a> ?&ndash;(.*?)\\.?</li>");
+	private static final Board[] FALLBACK_BOARD_LIST = new Board[] {
+		new Board("a", "Anime board"),
+		new Board("btb", "Bytebeat music discussion board"),
+		new Board("de", "Dollchan Extension discussion board"),
+		new Board("test", "Atomboard engine test board"),
+		new Board("ukr", "Board for Ukrainians")
+	};
+
 	@Override
 	public ReadBoardsResult onReadBoards(ReadBoardsData data) {
-		return new ReadBoardsResult(new BoardCategory(null, new Board[] {
-			new Board("ukr", "Україна"),
-			new Board("de", "Scripts"),
-			new Board("btb", "Bytebeat"),
-			new Board("test", "Testing")}));
+
+		DollchanChanLocator locator = ChanLocator.get(this);
+
+		Uri uri = locator.buildPath();
+		String responseText;
+
+		try {
+			HttpResponse response = new HttpRequest(uri, data).perform();
+			responseText = response.readString();
+		} catch (HttpException e) {
+			// cant get the list, so fallback
+			return new ReadBoardsResult(new BoardCategory(null, FALLBACK_BOARD_LIST));
+		}
+
+		Matcher m = PATTERN_BOARD_LIST.matcher(responseText);
+
+		ArrayList<Board> boards = new ArrayList<>();
+
+		while (m.find())
+		{
+			String boardId = m.group(1);
+			String boardDescription = m.group(3);
+			boards.add(new Board(boardId, boardDescription));
+		}
+
+		return new ReadBoardsResult(new BoardCategory(null, boards));
 	}
 
 	@Override
