@@ -94,7 +94,9 @@ jobs:
     - uses: actions/download-artifact@v3
       name: Download artifacts
       with:
-        path: meta/update/package/
+        path: artifacts
+    - name: Move artifacts
+      run: mv -f artifacts/* meta/update/package/*
     - name: Run generate.py
       run: python meta/generate.py
     - name: Git Diff
