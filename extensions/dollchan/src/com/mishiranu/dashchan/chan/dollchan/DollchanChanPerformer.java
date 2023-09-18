@@ -303,8 +303,8 @@ public class DollchanChanPerformer extends WakabaChanPerformer {
 		}
 
 		HttpResponse response = new HttpRequest(uri, data).setPostMethod(entity).
-				addCookie(buildCookies(data.captchaData)).
-				setRedirectHandler(HttpRequest.RedirectHandler.NONE).perform();
+			addCookie(buildCookies(data.captchaData)).
+			setRedirectHandler(HttpRequest.RedirectHandler.NONE).perform();
 
 		String responseText;
 		if (response.getResponseCode() == HttpURLConnection.HTTP_MOVED_TEMP) {
