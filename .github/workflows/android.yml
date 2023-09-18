@@ -80,6 +80,27 @@ jobs:
     needs: build
     steps:
     - uses: actions/download-artifact@v3
+      name: Download artifacts
       with:
         path: artifacts/
     - run: ls artifacts
+    - name: Install aapt
+      run: sudo apt-get -y install aapt
+    - name: Install python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    - run: pip install requests
+    - name: Checkout Dashchan-Meta
+      uses: actions/checkout@v3
+      with: 
+        repository: ${{ secrets.META_DASHCHAN_REPO }}
+        path: meta/
+    - name: Move atrifacts
+      run: |
+        ls artifacts | xargs -I artifact cd artifacts/artifact meta/update/package/artifact
+    - name: Run generate.py
+      run: python meta/generate.py
+    - name: Git Diff
+      working-directory: meta
+      run: git diff
