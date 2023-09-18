@@ -79,11 +79,6 @@ jobs:
     name: Deploy packages
     needs: build
     steps:
-    - uses: actions/download-artifact@v3
-      name: Download artifacts
-      with:
-        path: artifacts/
-    - run: ls artifacts
     - name: Install aapt
       run: sudo apt-get -y install aapt
     - name: Install python
@@ -96,9 +91,10 @@ jobs:
       with: 
         repository: ${{ secrets.META_DASHCHAN_REPO }}
         path: meta/
-    - name: Move atrifacts
-      run: |
-        ls artifacts | xargs -I module cp artifacts/module meta/update/package/module
+    - uses: actions/download-artifact@v3
+      name: Download artifacts
+      with:
+        path: meta/update/package/
     - name: Run generate.py
       run: python meta/generate.py
     - name: Git Diff
