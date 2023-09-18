@@ -15,9 +15,8 @@ env:
 
 jobs:
   build:
-  
     runs-on: ubuntu-latest
-
+    name: Build modules
     strategy:
       fail-fast: false
       matrix:
@@ -74,4 +73,13 @@ jobs:
       with:
         name: Dashchan${{ matrix.package.name }}.apk
         path: extensions/${{ matrix.package.module }}/build/outputs/apk/release/Dashchan${{ matrix.package.name }}-release.apk
-      
+
+  deploy:
+    runs-on: ubuntu-latest
+    name: Deploy packages
+    needs: build
+    steps:
+    - uses: actions/download-artifact@v3
+      with:
+        path: artifacts/
+    - run: ls artifacts
