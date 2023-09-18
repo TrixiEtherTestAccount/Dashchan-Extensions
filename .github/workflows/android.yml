@@ -96,7 +96,7 @@ jobs:
       with:
         path: artifacts
     - name: Move artifacts
-      run: mv -f artifacts/* meta/update/package/*
+      run: mv -u -v artifacts/* meta/update/package/*
     - name: Run generate.py
       run: python meta/generate.py
     - name: Git Diff
