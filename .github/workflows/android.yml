@@ -101,4 +101,6 @@ jobs:
       run: python meta/generate.py
     - name: Git Diff
       working-directory: meta
-      run: git diff
+      run: |
+        git status
+        git diff
