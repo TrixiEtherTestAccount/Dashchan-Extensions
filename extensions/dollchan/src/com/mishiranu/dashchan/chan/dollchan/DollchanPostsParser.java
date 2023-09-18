@@ -54,7 +54,6 @@ public class DollchanPostsParser {
 	protected boolean originalNameFromLink;
 
 	private static final Pattern FILE_SIZE = Pattern.compile("([\\d.]+) (\\w+), (\\d+)x(\\d+)(?:, (.+))?");
-	private static final Pattern NAME_EMAIL = Pattern.compile("<a href=\"(.*?)\">(.*)</a>");
 	private static final Pattern NUMBER = Pattern.compile("\\d+");
 
 	public DollchanPostsParser(Object linked, String boardName) {
@@ -195,17 +194,13 @@ public class DollchanPostsParser {
 			String id = StringUtils.clearHtml(text);
 			holder.post.setIdentifier(id);
 		})
-		.equals("span", "class", "postername")
-		.equals("span", "class", "commentpostername")
+		.starts("span", "class", "postername")
 		.content((instance, holder, text) -> {
-			String name = text;
-			String email = null;
-			Matcher matcher = NAME_EMAIL.matcher(text);
-			if (matcher.matches()) {
-				name = matcher.group(2);
-				email = StringUtils.clearHtml(matcher.group(1));
+			if (holder.post.getName() != null) {
+				holder.post.setName(holder.post.getName() + " " + text);
+			} else {
+				holder.post.setName(text);
 			}
-			holder.setNameEmail(name, email);
 		})
 		.equals("span", "class", "postername postername-admin")
 		.content((instance, holder, text) -> {

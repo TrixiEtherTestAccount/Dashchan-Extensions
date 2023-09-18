@@ -1,19 +1,11 @@
 package com.mishiranu.dashchan.chan.dollchan;
 
 import android.graphics.Bitmap;
-import android.graphics.Color;
 import android.net.Uri;
-import android.os.SystemClock;
-import android.util.Base64;
-import android.util.Pair;
 
 import chan.content.ApiException;
-import chan.content.ChanConfiguration;
 import chan.content.ChanLocator;
-import chan.content.ChanPerformer;
 import chan.content.InvalidResponseException;
-import chan.content.RedirectException;
-import chan.content.WakabaChanLocator;
 import chan.content.WakabaChanPerformer;
 import chan.content.model.Board;
 import chan.content.model.BoardCategory;
@@ -24,33 +16,24 @@ import chan.http.HttpException;
 import chan.http.HttpRequest;
 import chan.http.HttpResponse;
 import chan.http.MultipartEntity;
-import chan.http.SimpleEntity;
 import chan.http.UrlEncodedEntity;
 import chan.util.CommonUtils;
-import chan.util.StringUtils;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.text.ParseException;
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
-import java.util.Random;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
-
 public class DollchanChanPerformer extends WakabaChanPerformer {
 
+	private static final int AUTH_FIELD_BOARD = 0;
+	private static final int AUTH_FIELD_PASSCODE = 1;
+	private static final int AUTH_FIELD_PASSWORD = 2;
 	private static final String COOKIE_AUTHORIZATION = "AUTHORIZATION";
+	private static final String COOKIE_PASSCODE = "PASSCODE";
 
 	private String userPassword;
 
@@ -76,31 +59,68 @@ public class DollchanChanPerformer extends WakabaChanPerformer {
 		return new DollchanPostsParser(this, boardName).convertPosts(input);
 	}
 
+	private static final Pattern PATTERN_BOARD_LIST = Pattern.compile("<li><a href=\"https://dollchan.net/([a-z0-9]+)/\">/([a-z0-9]+)</a> ?&ndash;(.*?)\\.?</li>");
+	private static final Board[] FALLBACK_BOARD_LIST = new Board[] {
+		new Board("a", "Anime board"),
+		new Board("btb", "Bytebeat music discussion board"),
+		new Board("de", "Dollchan Extension discussion board"),
+		new Board("test", "Atomboard engine test board"),
+		new Board("ukr", "Board for Ukrainians")
+	};
+
 	@Override
 	public ReadBoardsResult onReadBoards(ReadBoardsData data) {
-		return new ReadBoardsResult(new BoardCategory(null, new Board[] {
-			new Board("ukr", "Україна"),
-			new Board("de", "Scripts"),
-			new Board("btb", "Bytebeat"),
-			new Board("test", "Testing")}));
+
+		DollchanChanLocator locator = ChanLocator.get(this);
+
+		Uri uri = locator.buildPath();
+		String responseText;
+
+		try {
+			HttpResponse response = new HttpRequest(uri, data).perform();
+			responseText = response.readString();
+		} catch (HttpException e) {
+			// cant get the list, so fallback
+			return new ReadBoardsResult(new BoardCategory(null, FALLBACK_BOARD_LIST));
+		}
+
+		Matcher m = PATTERN_BOARD_LIST.matcher(responseText);
+
+		ArrayList<Board> boards = new ArrayList<>();
+
+		while (m.find())
+		{
+			String boardId = m.group(1);
+			String boardDescription = m.group(3);
+			boards.add(new Board(boardId, boardDescription));
+		}
+
+		return new ReadBoardsResult(new BoardCategory(null, boards));
 	}
 
 	@Override
 	public CheckAuthorizationResult onCheckAuthorization(CheckAuthorizationData data)
 			throws HttpException {
-		String boardName = data.authorizationData[0];
-		String password = data.authorizationData[1];
-		return new CheckAuthorizationResult(authorizeUser(data, boardName, password) != null);
+		String boardName = data.authorizationData[AUTH_FIELD_BOARD];
+		String passcode = data.authorizationData[AUTH_FIELD_PASSCODE];
+		String password = data.authorizationData[AUTH_FIELD_PASSWORD];
+		if (password != null && !password.equals("")) {
+			return new CheckAuthorizationResult(authorizeUserForManage(data, boardName, password) != null);
+		} else if (passcode != null && !passcode.equals("")) {
+			return new CheckAuthorizationResult(authorizeUserForPasscode(data, boardName));
+		} else {
+			return new CheckAuthorizationResult(false);
+		}
 	}
 
-	private String authorizeUserFromConfiguration(HttpRequest.Preset preset)
+	private String authorizeUserFromConfigurationForManage(HttpRequest.Preset preset, boolean force)
 			throws HttpException {
 		String[] authorizationData = DollchanChanConfiguration.get(this).getUserAuthorizationData();
-		String boardName = authorizationData[0];
-		String password = authorizationData[1];
-		if (!checkPassword(password)) {
+		String boardName = authorizationData[AUTH_FIELD_BOARD];
+		String password = authorizationData[AUTH_FIELD_PASSWORD];
+		if (force || !checkPassword(password)) {
 			if (password != null) {
-				return authorizeUser(preset, boardName, password);
+				return authorizeUserForManage(preset, boardName, password);
 			} else {
 				userPassword = null;
 			}
@@ -108,7 +128,7 @@ public class DollchanChanPerformer extends WakabaChanPerformer {
 		return userPassword;
 	}
 
-	private String authorizeUser(HttpRequest.Preset preset, String boardName, String password)
+	private String authorizeUserForManage(HttpRequest.Preset preset, String boardName, String password)
 			throws HttpException {
 		userPassword = null;
 		DollchanChanLocator locator = ChanLocator.get(this);
@@ -122,22 +142,85 @@ public class DollchanChanPerformer extends WakabaChanPerformer {
 		configuration.storeCookie(COOKIE_AUTHORIZATION,
 			response.getCookieValue("PHPSESSID"), "Authorization");
 
-		return updateAuthorizationData(response.readString(), password);
-	}
-
-	private String updateAuthorizationData(String response, String password) {
-		if (response != null && response.contains("?manage&logout\">Log Out<")) {
+		String responseString = response.readString();
+		if (responseString != null && responseString.contains("?manage&logout\">Log Out<")) {
 			this.userPassword = password;
 			return password;
 		}
+
 		userPassword = null;
 		return null;
+	}
+
+	private boolean doAuthorizeUserForPasscode(HttpRequest.Preset preset, String boardName)
+			throws HttpException {
+		DollchanChanConfiguration configuration = DollchanChanConfiguration.get(this);
+		DollchanChanLocator locator = ChanLocator.get(this);
+
+		String[] authorizationData = DollchanChanConfiguration.get(this).getUserAuthorizationData();
+		if (authorizationData[AUTH_FIELD_PASSCODE] == null) {
+			configuration.storeCookie(COOKIE_PASSCODE, null, "Passcode");
+			return false;
+		}
+
+		Uri uri = locator.buildPath(boardName, "imgboard.php?passcode");
+		HttpResponse response = new HttpRequest(uri, preset).setPostMethod(
+			new UrlEncodedEntity("passcode",
+				authorizationData[AUTH_FIELD_PASSCODE])).perform();
+
+		String responseString = response.readString();
+		if (responseString == null || !responseString.contains("You have logged in.")) {
+			configuration.storeCookie(COOKIE_PASSCODE, null, "Passcode");
+			return false;
+		}
+
+		configuration.storeCookie(COOKIE_PASSCODE,
+				response.getCookieValue("PHPSESSID"), "Passcode");
+
+		return true;
+	}
+
+	private boolean authorizeUserForPasscode(HttpRequest.Preset preset, String boardName)
+			throws HttpException {
+		DollchanChanLocator locator = ChanLocator.get(this);
+
+		Uri uri = locator.buildPath(boardName, "imgboard.php?passcode&check");
+		HttpResponse checkResponse;
+
+		HttpRequest request = new HttpRequest(uri, preset).addCookie(buildPasscodeCookies());
+
+		try {
+			checkResponse = request.perform();
+
+			if (checkResponse.getResponseCode() == 200 && "OK".equals(checkResponse.readString())) {
+				return true;
+			}
+		} catch (HttpException e) {
+			if (e.getResponseCode() != 403) {
+				// something else
+				throw e;
+			}
+		}
+
+		return doAuthorizeUserForPasscode(preset, boardName);
 	}
 
 	private static final Pattern PATTERN_POST_ERROR = Pattern.compile("<div class=\"reply\".*?>(.*?)</div>");
 	private static final Pattern PATTERN_POST_ERROR_UNCOMMON = Pattern.compile("<h2>(.*?)</h2>");
 	@Override
 	public ReadCaptchaResult onReadCaptcha(ReadCaptchaData data) throws HttpException, InvalidResponseException {
+		if (authorizeUserFromConfigurationForManage(data, false) != null) {
+			CaptchaData captchaData = new CaptchaData();
+			captchaData.put("manage", "1");
+			return new ReadCaptchaResult(CaptchaState.SKIP, captchaData);
+		}
+
+		if (authorizeUserForPasscode(data, data.boardName)) {
+			CaptchaData captchaData = new CaptchaData();
+			captchaData.put("pass", "1");
+			return new ReadCaptchaResult(CaptchaState.PASS, captchaData);
+		}
+
 		DollchanChanLocator locator = DollchanChanLocator.get(this);
 		Uri uri = locator.buildPath(data.boardName, "inc", "captcha.php");
 		HttpResponse response = new HttpRequest(uri, data).perform();
@@ -164,16 +247,35 @@ public class DollchanChanPerformer extends WakabaChanPerformer {
 	}
 
 	private CookieBuilder buildCookies(CaptchaData data) {
+		if (data != null) {
+			if (data.get("pass") != null) {
+				return buildPasscodeCookies();
+			}
+			if (data.get("manage") != null) {
+				return buildCookiesWithAuthorizationPass();
+			}
+		}
 		CookieBuilder builder = new CookieBuilder();
-		if (data != null)
-		{
+		if (data != null) {
 			builder.append("PHPSESSID", data.get(CaptchaData.CHALLENGE));
 		}
 		return builder;
 	}
 
-	@Override
-	public SendPostResult onSendPost(SendPostData data) throws HttpException, ApiException, InvalidResponseException {
+	private CookieBuilder buildPasscodeCookies() {
+		DollchanChanConfiguration configuration = DollchanChanConfiguration.get(this);
+		CookieBuilder builder = new CookieBuilder();
+		String passcodeCookie = configuration.getCookie(COOKIE_PASSCODE);
+		if (passcodeCookie != null)
+		{
+			builder.append("PHPSESSID", passcodeCookie);
+		}
+		return builder;
+	}
+
+	private SendPostResult doSendPost(SendPostData data, boolean forceAuth)
+			throws HttpException, ApiException, InvalidResponseException {
+
 		MultipartEntity entity = new MultipartEntity();
 
 		entity.add("parent", data.threadNumber != null ? data.threadNumber : "0");
@@ -196,7 +298,7 @@ public class DollchanChanPerformer extends WakabaChanPerformer {
 		DollchanChanLocator locator = ChanLocator.get(this);
 		Uri uri = locator.buildPath(data.boardName, "imgboard.php");
 
-		if (data.captchaData != null) {
+		if (data.captchaData != null && data.captchaData.get(CaptchaData.INPUT) != null) {
 			entity.add("captcha", data.captchaData.get(CaptchaData.INPUT));
 		}
 
@@ -235,7 +337,16 @@ public class DollchanChanPerformer extends WakabaChanPerformer {
 		}
 		if (errorMessage != null) {
 			int errorType = 0;
-			if (errorMessage.contains("Incorrect CAPTCHA text entered")) {
+			if (errorMessage.contains("CAPTCHA")) {
+				if (!forceAuth) {
+					// a cookie was expired, so we need to enter captcha
+					// check if we can re-login and try again
+					if (authorizeUserFromConfigurationForManage(data, true) != null) {
+						return doSendPost(data, true);
+					} else if (doAuthorizeUserForPasscode(data, data.boardName)) {
+						return doSendPost(data, true);
+					}
+				}
 				errorType = ApiException.SEND_ERROR_CAPTCHA;
 			}
 			if (errorType != 0) {
@@ -246,6 +357,12 @@ public class DollchanChanPerformer extends WakabaChanPerformer {
 			}
 		}
 		return null;
+	}
+
+	@Override
+	public SendPostResult onSendPost(SendPostData data)
+			throws HttpException, ApiException, InvalidResponseException {
+		return doSendPost(data, false);
 	}
 
 	protected static Pattern POSTER_IP = Pattern.compile("<input type=\"hidden\" name=\"bans\" value=\"(.*?)\">");
@@ -261,11 +378,10 @@ public class DollchanChanPerformer extends WakabaChanPerformer {
 		return builder;
 	}
 
-	@Override
-	public SendReportPostsResult onSendReportPosts(SendReportPostsData data)
-			throws HttpException, ApiException
+	private SendReportPostsResult doSendReportPosts(SendReportPostsData data, boolean reAuth)
+		throws HttpException, ApiException
 	{
-		if (authorizeUserFromConfiguration(data) == null)
+		if (authorizeUserFromConfigurationForManage(data, reAuth) == null)
 		{
 			throw new ApiException(ApiException.SEND_ERROR_NO_ACCESS);
 		}
@@ -281,6 +397,10 @@ public class DollchanChanPerformer extends WakabaChanPerformer {
 					addCookie(buildCookiesWithAuthorizationPass()).
 						perform().readString();
 				if (response.contains("Enter an administrator or moderator password")) {
+					if (!reAuth) {
+						// re-authenticate and try again
+						return doSendReportPosts(data, true);
+					}
 					throw new ApiException(ApiException.DELETE_ERROR_PASSWORD);
 				}
 			}
@@ -337,6 +457,10 @@ public class DollchanChanPerformer extends WakabaChanPerformer {
 						perform().readString();
 
 				if (response.contains("Enter an administrator or moderator password")) {
+					if (!reAuth) {
+						// re-authenticate and try again
+						return doSendReportPosts(data, true);
+					}
 					throw new ApiException(ApiException.DELETE_ERROR_PASSWORD);
 				}
 			}
@@ -391,6 +515,10 @@ public class DollchanChanPerformer extends WakabaChanPerformer {
 					perform().readString();
 
 				if (response.contains("Enter an administrator or moderator password")) {
+					if (!reAuth) {
+						// re-authenticate and try again
+						return doSendReportPosts(data, true);
+					}
 					throw new ApiException(ApiException.DELETE_ERROR_PASSWORD);
 				}
 
@@ -400,6 +528,10 @@ public class DollchanChanPerformer extends WakabaChanPerformer {
 					perform().readString();
 
 				if (response.contains("Enter an administrator or moderator password")) {
+					if (!reAuth) {
+						// re-authenticate and try again
+						return doSendReportPosts(data, true);
+					}
 					throw new ApiException(ApiException.DELETE_ERROR_PASSWORD);
 				}
 			}
@@ -408,6 +540,13 @@ public class DollchanChanPerformer extends WakabaChanPerformer {
 		}
 
 		throw new ApiException(ApiException.SEND_ERROR_NO_ACCESS);
+	}
+
+	@Override
+	public SendReportPostsResult onSendReportPosts(SendReportPostsData data)
+			throws HttpException, ApiException
+	{
+		return doSendReportPosts(data, false);
 	}
 
 	@Override
