@@ -98,7 +98,7 @@ jobs:
         path: meta/
     - name: Move atrifacts
       run: |
-        ls artifacts | xargs -I artifact cp -f artifacts/artifact meta/update/package/artifact
+        ls artifacts | xargs -I module cp -f artifacts/module meta/update/package/module
     - name: Run generate.py
       run: python meta/generate.py
     - name: Git Diff
