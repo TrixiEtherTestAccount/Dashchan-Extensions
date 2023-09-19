@@ -97,7 +97,7 @@ jobs:
         path: artifacts
     - name: Move artifacts
       run: |
-        ls artifacts | xargs -I module cp -f artifacts/module/module.apk meta/update/package
+        ls artifacts | xargs -I module cp -f artifacts/module/module-release.apk meta/update/package
         cd meta/update/package
         for file in `ls -p | grep -v '/$' | grep -E '*-release.apk'`; do
           newfile=`echo "$file" | sed 's/^\(.*\)-release\(.*\)$/\1\2/'`
