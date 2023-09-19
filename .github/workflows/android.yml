@@ -96,7 +96,7 @@ jobs:
       with:
         path: artifacts
     - name: Move artifacts
-      run: /bin/cp -rfv artifacts/*.apk meta/update/package/
+      run: yes | cp -fv artifacts/*.apk meta/update/package/
     - name: Run generate.py
       run: python meta/generate.py
     - name: Git Diff
