@@ -55,7 +55,7 @@ jobs:
         distribution: 'temurin'
         cache: gradle
 
-    - name: Checkout kyestore - for ${{ matrix.package.name }}
+    - name: Checkout keystore - for ${{ matrix.package.name }}
       uses: actions/checkout@v3
       with:
         repository: ${{ secrets.KEYSTORE_DASHCHAN_REPO }}
