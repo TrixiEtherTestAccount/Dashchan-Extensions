@@ -97,9 +97,7 @@ jobs:
         path: artifacts
     - name: Move artifacts
       working-directory: artifacts
-      run: |
-        ls -l
-        /bin/cp -arfv *.apk ../meta/update/package
+      run: mv -f *.apk ../meta/update/package
     - name: Run generate.py
       run: python meta/generate.py
     - name: Git Diff
