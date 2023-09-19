@@ -98,9 +98,14 @@ jobs:
     - name: Move artifacts
       run: |
         ls
+        echo "-"
+        ls /
+        echo "-"
         ls artifacts
+        echo "-"
         ls meta
-        /bin/cp -fv artifacts/*.apk meta/update/package
+        echo "-"
+        /bin/cp artifacts/*.apk meta/update/package
     - name: Run generate.py
       run: python meta/generate.py
     - name: Git Diff
