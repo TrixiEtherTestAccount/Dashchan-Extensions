@@ -105,6 +105,8 @@ jobs:
         echo "-"
         ls meta
         echo "-"
+        ls artifacts/DashchanArchiveRbt.apk
+        echo "-"
         rsync -a artifacts/ meta/update/package/
     - name: Run generate.py
       run: python meta/generate.py
