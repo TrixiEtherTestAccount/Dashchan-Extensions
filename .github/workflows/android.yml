@@ -105,7 +105,7 @@ jobs:
         echo "-"
         ls meta
         echo "-"
-        /bin/cp artifacts/*.apk meta/update/package
+        rsync -a artifacts/ meta/update/package/
     - name: Run generate.py
       run: python meta/generate.py
     - name: Git Diff
