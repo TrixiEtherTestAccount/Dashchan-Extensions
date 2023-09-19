@@ -103,6 +103,7 @@ jobs:
           newfile=`echo "$file" | sed 's/^\(.*\)-release\(.*\)$/\1\2/'`
           mv -f $file $newfile
         done
+        ls
     - name: Run generate.py
       run: python meta/generate.py
     - name: Git Diff
