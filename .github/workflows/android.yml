@@ -71,7 +71,7 @@ jobs:
     - name: Upload APK - ${{ matrix.package.name }}
       uses: actions/upload-artifact@v2
       with:
-        name: Dashchan${{ matrix.package.name }}.apk
+        name: Dashchan${{ matrix.package.name }}
         path: extensions/${{ matrix.package.module }}/build/outputs/apk/release/Dashchan${{ matrix.package.name }}-release.apk
 
   deploy:
@@ -97,17 +97,12 @@ jobs:
         path: artifacts
     - name: Move artifacts
       run: |
-        ls
-        echo "-"
-        ls /
-        echo "-"
-        ls artifacts
-        echo "-"
-        ls meta
-        echo "-"
-        ls artifacts/DashchanArchiveRbt.apk
-        echo "-"
-        rsync -a artifacts/ meta/update/package/
+        ls artifact | xargs -I module cp -f artifact/module/*.apk meta/update/package
+        cd meta/update/package
+        for file in `ls -p | grep -v '/$' | grep -E '*-release.apk'`; do
+          newfile=`echo "$file" | sed 's/^\(.*\)-release\(.*\)$/\1\2/'`
+          mv -f $file $newfile
+        done
     - name: Run generate.py
       run: python meta/generate.py
     - name: Git Diff
